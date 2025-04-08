@@ -1,22 +1,16 @@
+document.addEventListener("DOMContentLoaded", () => {
+  updateArticles();
+});
 
 function updateArticles() {
   const app = document.getElementById("app");
   app.innerHTML = "Lade Artikel...";
 
-  const rssUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
-  fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`)
-    .then(response => response.json())
-    .then(data => {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(data.contents, "text/xml");
-      const items = doc.querySelectorAll("item");
-      const articles = Array.from(items).slice(0, 6).map((item, i) => ({
-        titel: item.querySelector("title").textContent,
-        link: item.querySelector("link").textContent,
-        teaser: item.querySelector("description")?.textContent || ""
-      }));
-      renderArticles(articles);
-    })
+  const rssUrl = encodeURIComponent("https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss");
+
+  fetch(`/api/rss-proxy?url=${rssUrl}`)
+    .then(res => res.json())
+    .then(data => renderArticles(data))
     .catch(err => {
       app.innerHTML = "Fehler beim Laden der Artikel.";
       console.error(err);
@@ -25,26 +19,29 @@ function updateArticles() {
 
 function renderArticles(articles) {
   const app = document.getElementById("app");
+  if (!articles || articles.length === 0) {
+    app.innerHTML = "Keine Artikel gefunden.";
+    return;
+  }
+
   app.innerHTML = '<div class="artikel-grid">' +
     articles.map(a => `
       <div class="card">
-        <strong>${a.titel}</strong>
-        <div class="artikel-teaser">${a.teaser.split(".")[0]}</div>
+        <strong>${a.title}</strong>
+        <div class="artikel-teaser">${a.teaser}</div>
         <a href="${a.link}" target="_blank">Artikel ansehen</a>
       </div>
-    `).join("") + '</div>';
+    `).join('') +
+    '</div>';
 }
 
 function generatePrompt() {
   const name = document.getElementById("autorName").value || "Unbekannt";
-  const datum = new Date().toLocaleDateString("de-DE");
-  const text = `Datum: ${datum}
-Name: ${name}
+  const datum = new Date().toLocaleDateString('de-DE');
 
---- GPT-PROMPT ---
+  const prompt = `Datum: ${datum}\nName: ${name}\n\n--- GPT-PROMPT ---\n\nBeispielinhalt`;
 
-Beispielinhalt`;
-  document.getElementById("promptText").textContent = text;
+  document.getElementById("promptText").textContent = prompt;
   document.getElementById("promptDialog").showModal();
 }
 
@@ -58,5 +55,3 @@ function copyPrompt() {
 function closeDialog() {
   document.getElementById("promptDialog").close();
 }
-
-document.addEventListener("DOMContentLoaded", updateArticles);
