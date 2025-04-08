@@ -1,23 +1,37 @@
+:root {
+  --rot: #CC0000;
+  --schwarz: #000000;
+  --weiß: #FFFFFF;
+  --cyan: #00c5ef;
+  --dunkelgrau: #666666;
+  --mittelgrau: #B7BBBF;
+  --hellgrau: #EDEEEF;
+}
 
 body {
   font-family: Arial, sans-serif;
-  background-color: white;
-  color: black;
+  background-color: var(--weiß);
+  color: var(--schwarz);
   margin: 0;
   padding: 0;
 }
 
 header {
-  background-color: #CC0000;
-  color: white;
-  padding: 10px 20px;
+  background-color: var(--rot);
+  color: var(--weiß);
   display: flex;
   align-items: center;
+  padding: 10px 20px;
 }
 
 header img {
   height: 50px;
   margin-right: 20px;
+}
+
+header h1 {
+  font-size: 1.5em;
+  margin: 0;
 }
 
 .container {
@@ -29,51 +43,105 @@ header img {
 .top-buttons {
   display: flex;
   gap: 10px;
-  margin: 20px 0;
+  margin-bottom: 20px;
+  margin-top: 30px;
+}
+
+.name-field {
+  margin-bottom: 20px;
 }
 
 .artikel-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  margin-top: 30px;
 }
 
 .card {
-  background: #EDEEEF;
+  background: var(--hellgrau);
+  border: 1px solid var(--mittelgrau);
   padding: 15px;
   border-radius: 8px;
-  border: 1px solid #B7BBBF;
 }
 
 .artikel-teaser {
+  color: var(--dunkelgrau);
   font-size: 0.9em;
-  color: #666666;
   margin: 8px 0;
+}
+
+select,
+textarea,
+input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  border: 1px solid var(--mittelgrau);
+  font-size: 1em;
+}
+
+button {
+  background-color: var(--rot);
+  color: var(--weiß);
+  border: none;
+  padding: 10px 16px;
+  font-size: 1em;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background-color: var(--mittelgrau);
+  cursor: default;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 dialog {
   border: none;
   border-radius: 10px;
-  padding: 0;
   width: 80%;
   max-width: 800px;
+  padding: 0;
+  overflow: hidden;
+  font-size: 1em;
 }
 
-.modal-header, .modal-footer {
-  background: #B7BBBF;
+.modal-header {
+  background: var(--dunkelgrau);
+  color: var(--weiß);
   padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .modal-body {
+  background: var(--hellgrau);
   padding: 20px;
-  background: #EDEEEF;
 }
 
 .modal-body pre {
-  background: white;
+  white-space: pre-wrap;
+  background: var(--weiß);
   padding: 15px;
   border-radius: 6px;
-  white-space: pre-wrap;
   max-height: 400px;
   overflow-y: auto;
+  font-family: monospace;
+}
+
+.modal-footer {
+  background: var(--mittelgrau);
+  padding: 10px 20px;
+  text-align: right;
+}
+
+.modal-footer button {
+  margin-left: 10px;
 }
