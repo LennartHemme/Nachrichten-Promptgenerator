@@ -1,1 +1,79 @@
-body { font-family: sans-serif; background: #fff; color: #000; } /* Placeholder */
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: white;
+  color: black;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background-color: #CC0000;
+  color: white;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+}
+
+header img {
+  height: 50px;
+  margin-right: 20px;
+}
+
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.top-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.artikel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.card {
+  background: #EDEEEF;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #B7BBBF;
+}
+
+.artikel-teaser {
+  font-size: 0.9em;
+  color: #666666;
+  margin: 8px 0;
+}
+
+dialog {
+  border: none;
+  border-radius: 10px;
+  padding: 0;
+  width: 80%;
+  max-width: 800px;
+}
+
+.modal-header, .modal-footer {
+  background: #B7BBBF;
+  padding: 15px;
+}
+
+.modal-body {
+  padding: 20px;
+  background: #EDEEEF;
+}
+
+.modal-body pre {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+}
