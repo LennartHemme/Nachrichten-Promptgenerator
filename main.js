@@ -1,63 +1,35 @@
-document.addEventListener("DOMContentLoaded", () => {
-  ladeArtikel();
-});
-
-function ladeArtikel() {
+async function updateArticles() {
   const app = document.getElementById("app");
   app.innerHTML = "Lade Artikel...";
 
-  fetch("/api/rss-proxy")
-    .then((res) => res.json())
-    .then((data) => render(data))
-    .catch((err) => {
-      console.error(err);
-      app.innerHTML = "❌ Fehler beim Laden der Artikel.";
-    });
-}
+  try {
+    const feedRes = await fetch("/api/rss");
+    const feed = await feedRes.json();
 
-function render(artikelListe) {
-  const app = document.getElementById("app");
-  if (!artikelListe.length) {
-    app.innerHTML = "<p>Keine Artikel gefunden.</p>";
-    return;
+    const heute = new Date().toDateString();
+    const artikel = await Promise.all(feed.map(async item => {
+      const scraped = await fetch(`/api/scrape?url=${encodeURIComponent(item.link)}`).then(r => r.json());
+      return {
+        titel: item.titel,
+        link: item.link,
+        text: scraped.text
+      };
+    }));
+
+    renderArticles(artikel);
+  } catch (e) {
+    app.innerHTML = "❌ Fehler beim Laden";
+    console.error(e);
   }
-
-  app.innerHTML =
-    `<div class="artikel-grid">` +
-    artikelListe
-      .map(
-        (a) => `
-      <div class="card">
-        <strong>${a.titel}</strong>
-        <div class="artikel-teaser">${a.teaser}</div>
-        <a href="${a.link}" target="_blank">Artikel ansehen</a>
-      </div>`
-      )
-      .join("") +
-    "</div>";
 }
 
-function updateArticles() {
-  ladeArtikel(); // Gleiche Funktion wie beim Start
-}
-
-function generatePrompt() {
-  const name = document.getElementById("autorName").value || "Unbekannt";
-  const datum = new Date().toLocaleDateString("de-DE");
-  const prompt = `Datum: ${datum}\nName: ${name}\n\n--- GPT-PROMPT ---\n\nBeispielinhalt`;
-
-  document.getElementById("promptText").textContent = prompt;
-  document.getElementById("promptDialog").showModal();
-}
-
-function copyPrompt() {
-  const text = document.getElementById("promptText").textContent;
-  navigator.clipboard
-    .writeText(text)
-    .then(() => alert("📋 Prompt wurde in die Zwischenablage kopiert!"))
-    .catch(() => alert("❌ Kopieren fehlgeschlagen."));
-}
-
-function closeDialog() {
-  document.getElementById("promptDialog").close();
+function renderArticles(artikel) {
+  const app = document.getElementById("app");
+  app.innerHTML = '<div class="artikel-grid">' + artikel.map(a => `
+    <div class="card">
+      <strong>${a.titel}</strong>
+      <div class="artikel-teaser">${a.text.split("\n")[0]}</div>
+      <a href="${a.link}" target="_blank">Artikel ansehen</a>
+    </div>
+  `).join('') + '</div>';
 }
