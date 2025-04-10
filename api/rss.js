@@ -23,33 +23,25 @@ export default async function handler(req, res) {
 
       if (exists.data) continue;
 
-      let volltext = "";
-      try {
-        const diffbot = await fetch(`https://api.diffbot.com/v3/article?token=${process.env.DIFFBOT_TOKEN}&url=${encodeURIComponent(item.link)}`);
-        const diffJson = await diffbot.json();
-        volltext = diffJson?.objects?.[0]?.text || '';
-      } catch (err) {
-        console.error("❌ Fehler beim Abrufen von Diffbot:", err.message);
-      }
+      const diffResponse = await fetch(`https://api.diffbot.com/v3/article?token=${process.env.DIFFBOT_TOKEN}&url=${encodeURIComponent(item.link)}`);
+      const diffJson = await diffResponse.json();
+
+      const volltext = diffJson?.objects?.[0]?.text || '';
 
       const { error } = await supabase.from("artikel").insert([{
         titel: item.title,
-        beschreibung: item.contentSnippet || '',
+        beschreibung: item.contentSnippet,
         zeitstempel: new Date(item.pubDate).toISOString(),
         volltext
       }]);
 
-      if (error) {
-        console.error("❌ Fehler beim Einfügen in Supabase:", error.message);
-        continue;
-      }
-
-      inserted++;
+      if (!error) inserted++;
     }
 
     res.status(200).json({ inserted });
+
   } catch (e) {
-    console.error("❌ Genereller Fehler in /api/rss:", e.message);
+    console.error("❌ Fehler in /api/rss:", e);
     res.status(500).json({ error: e.message });
   }
 }
