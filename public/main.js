@@ -1,17 +1,30 @@
+console.log("✅ main.js läuft");
+
+async function getConfig() {
+  const res = await fetch('/api/config');
+  const config = await res.json();
+  return config;
+}
+
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-const supabase = createClient(
-  'https://fwqzalxpezqdkplgudix.supabase.co',
-  '', // Wird aus ENV geladen
-);
+let supabase;
+
+getConfig().then(config => {
+  supabase = createClient(config.supabaseUrl, config.publicAnonKey);
+  updateArticles(); // erst dann starten
+});
 
 async function ladeArtikel() {
   const app = document.getElementById("app");
   app.innerHTML = "⏳ Lade Artikel...";
 
+  const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
   const { data, error } = await supabase
     .from("artikel")
     .select("*")
+    .gte("zeitstempel", seitGestern)
     .order("zeitstempel", { ascending: false });
 
   if (error) {
@@ -21,7 +34,7 @@ async function ladeArtikel() {
   }
 
   if (!data.length) {
-    app.innerHTML = "⚠️ Keine Artikel gefunden.";
+    app.innerHTML = "⚠️ Keine Artikel aus den letzten 24 Stunden.";
     return;
   }
 
@@ -31,21 +44,23 @@ async function ladeArtikel() {
     card.className = "card";
     card.innerHTML = `
       <h3>${a.titel}</h3>
-      <p>${a.beschreibung}</p>
-      <small>${new Date(a.zeitstempel).toLocaleString()}</small>
+      <p>${a.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
+      <small>📅 ${new Date(a.zeitstempel).toLocaleString()}</small>
     `;
     app.appendChild(card);
   });
 }
 
-document.getElementById("updateBtn").addEventListener("click", async () => {
-  await fetch("/api/rss");
-  ladeArtikel();
-});
-document.getElementById("promptBtn").addEventListener("click", async () => {
-  const res = await fetch("/api/prompt");
-  const txt = await res.text();
-  alert(txt);
-});
+async function updateArticles() {
+  const btn = document.getElementById("updateBtn");
+  btn.disabled = true;
+  btn.textContent = "⏳ Lade neue Artikel...";
+  const res = await fetch("/api/rss");
+  const result = await res.json();
+  console.log("Neue Artikel:", result.inserted);
+  await ladeArtikel();
+  btn.disabled = false;
+  btn.textContent = "Artikel aktualisieren";
+}
 
-ladeArtikel();
+window.updateArticles = updateArticles;
