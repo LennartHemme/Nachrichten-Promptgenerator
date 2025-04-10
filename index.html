@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mittagsupdate-Promptgenerator</title>
   <link rel="stylesheet" href="./style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"></script>
 </head>
 <body>
   <header>
@@ -30,80 +29,4 @@
 
     <div class="top-buttons">
       <button onclick="updateArticles()">Artikel aktualisieren</button>
-      <button onclick="generatePrompt()">Prompt generieren</button>
-    </div>
-  </div>
-
-  <dialog id="promptDialog">
-    <div class="modal-header">
-      <span>📄 Vorschau: Mittagsupdate-Prompt</span>
-      <button onclick="closeDialog()">✖</button>
-    </div>
-    <div class="modal-body">
-      <pre id="promptText"></pre>
-    </div>
-    <div class="modal-footer">
-      <button onclick="copyPrompt()">In Zwischenablage kopieren</button>
-      <button onclick="closeDialog()">Schließen</button>
-    </div>
-  </dialog>
-
-  <script src="./main.js"></script>
-  <script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-  const supabase = createClient(
-    'https://fwqzalxpezqdkplgudix.supabase.co', // 👉 ersetzen!
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODU1MDMsImV4cCI6MjA1OTg2MTUwM30.XIAIYCUzNxvRM9R-S3uLLz-XPUC8i7jWSWmhwyWyi4A'              // 👉 ersetzen!
-  );
-
-  async function ladeArtikel() {
-  const appDiv = document.getElementById("app");
-  appDiv.innerHTML = ""; // vorherigen Inhalt löschen
-
-  const { data, error } = await supabase
-    .from("artikel")
-    .select("*")
-    .order("zeitstempel", { ascending: false });
-
-  if (error) {
-    appDiv.innerHTML = "<p>❌ Fehler beim Laden der Artikel.</p>";
-    console.error("❌ Fehler beim Abrufen:", error);
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    appDiv.innerHTML = "<p>Keine Artikel gefunden.</p>";
-    return;
-  }
-
-  data.forEach((artikel) => {
-    const articleDiv = document.createElement("div");
-    articleDiv.classList.add("artikel");
-
-    articleDiv.innerHTML = `
-      <h3>${artikel.titel}</h3>
-
-      <label>
-        <input type="checkbox" ${artikel.ausgewählt ? "checked" : ""} disabled />
-        Ausgewählt
-      </label><br>
-
-      <label>
-        <input type="checkbox" ${artikel.hintergrund ? "checked" : ""} disabled />
-        Hintergrundstück
-      </label><br>
-
-      ${artikel.hintergrund && artikel.begründung_hintergrund ? `
-        <label><strong>Begründung:</strong><br>
-          <textarea disabled>${artikel.begründung_hintergrund}</textarea>
-        </label>
-      ` : ""}
-    `;
-
-    appDiv.appendChild(articleDiv);
-  });
-}
-</script>
-</body>
-</html>
+      <button onclick="generatePrompt()">Prompt generieren</
