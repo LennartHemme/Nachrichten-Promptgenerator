@@ -1,16 +1,23 @@
 console.log("✅ main.js läuft");
 
-async function getConfig() {
-  const res = await fetch('/api/config');
-  const config = await res.json();
-  return config;
-}
-
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 let supabase;
 
+async function getConfig() {
+  try {
+    const res = await fetch('/api/config');
+    if (!res.ok) throw new Error(`Fehler beim Abrufen der Config: ${res.status}`);
+    const config = await res.json();
+    return config;
+  } catch (err) {
+    console.error("❌ getConfig fehlgeschlagen:", err.message);
+    document.getElementById("app").innerHTML = "❌ Fehler beim Initialisieren.";
+  }
+}
+
 getConfig().then(config => {
+  if (!config) return;
   supabase = createClient(config.supabaseUrl, config.publicAnonKey);
   updateArticles(); // erst dann starten
 });
@@ -28,7 +35,7 @@ async function ladeArtikel() {
     .order("zeitstempel", { ascending: false });
 
   if (error) {
-    console.error(error);
+    console.error("❌ Supabase-Fehler:", error.message);
     app.innerHTML = "❌ Fehler beim Laden.";
     return;
   }
@@ -53,12 +60,18 @@ async function ladeArtikel() {
 
 async function updateArticles() {
   const btn = document.getElementById("updateBtn");
+  if (!btn) return;
+
   btn.disabled = true;
   btn.textContent = "⏳ Lade neue Artikel...";
-  const res = await fetch("/api/rss");
-  const result = await res.json();
-  console.log("Neue Artikel:", result.inserted);
-  await ladeArtikel();
+  try {
+    const res = await fetch("/api/rss");
+    const result = await res.json();
+    console.log("🆕 Neue Artikel:", result.inserted);
+    await ladeArtikel();
+  } catch (err) {
+    console.error("❌ updateArticles fehlgeschlagen:", err.message);
+  }
   btn.disabled = false;
   btn.textContent = "Artikel aktualisieren";
 }
