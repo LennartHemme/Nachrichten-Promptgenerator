@@ -1,4 +1,3 @@
-// Supabase initialisieren
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const supabase = createClient(
@@ -6,10 +5,9 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODU1MDMsImV4cCI6MjA1OTg2MTUwM30.XIAIYCUzNxvRM9R-S3uLLz-XPUC8i7jWSWmhwyWyi4A'
 );
 
-// Artikel aus Supabase laden und anzeigen
 async function ladeArtikel() {
   const appDiv = document.getElementById("app");
-  appDiv.innerHTML = "<p>Artikel werden geladen…</p>";
+  appDiv.innerHTML = "<p>🧪 Lade Artikel aus Supabase…</p>";
 
   const { data, error } = await supabase
     .from("artikel")
@@ -17,7 +15,7 @@ async function ladeArtikel() {
     .order("zeitstempel", { ascending: false });
 
   if (error) {
-    console.error("❌ Fehler beim Abrufen der Artikel:", error);
+    console.error("❌ Fehler beim Abrufen:", error);
     appDiv.innerHTML = "<p>Fehler beim Laden der Artikel.</p>";
     return;
   }
@@ -35,15 +33,6 @@ async function ladeArtikel() {
 
     articleDiv.innerHTML = `
       <h3>${artikel.titel}</h3>
-
-      ${artikel.volltext ? `
-        <details>
-          <summary>🔍 Volltext anzeigen</summary>
-          <p>${artikel.volltext}</p>
-        </details>
-      ` : ""}
-
-      <p><strong>Rolle:</strong> ${artikel.rolle || "-"}</p>
 
       <label>
         <input type="checkbox" ${artikel.ausgewählt ? "checked" : ""} disabled />
@@ -66,5 +55,4 @@ async function ladeArtikel() {
   });
 }
 
-// Direkt beim Laden ausführen
 ladeArtikel();
