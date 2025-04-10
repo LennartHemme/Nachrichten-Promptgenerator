@@ -25,7 +25,12 @@ export default async function handler(req, res) {
 
   if (error) return res.status(500).json({ error });
 
-  let promptTemplate = await fs.readFile(path.resolve('./prompt.txt'), 'utf-8');
+  let promptTemplate;
+  try {
+    promptTemplate = await fs.readFile(path.resolve('./prompt.txt'), 'utf-8');
+  } catch (readErr) {
+    return res.status(500).json({ error: 'Promptvorlage fehlt oder kann nicht gelesen werden.' });
+  }
 
   let artikelTexte = '';
   data.forEach((a, i) => {
