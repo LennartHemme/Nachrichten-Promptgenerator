@@ -1,63 +1,84 @@
 import { xml2json } from 'xml-js';
 
+// Automatischer Volltext-Scraper – einfache Version
+async function scrapeVolltext(link) {
+  try {
+    const pageRes = await fetch(link);
+    const html = await pageRes.text();
+    // Extrahiere sämtliche <p>-Inhalte als Volltext (einfache Methode)
+    const paragraphs = html.match(/<p[^>]*>(.*?)<\/p>/gs) || [];
+    const text = paragraphs.map(p => p.replace(/<[^>]+>/g, "").trim()).join("\n\n");
+    return text.slice(0, 8000);
+  } catch (err) {
+    return "❌ Volltext konnte nicht geladen werden.";
+  }
+}
+
 export default async function handler(req, res) {
   const rssUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
   const supabaseUrl = "https://fwqzalxpezqdkplgudix.supabase.co/rest/v1/artikel";
-  const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o"; // Bitte deinen Service Role Key einsetzen
+  const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o"; // Hier deinen vollständigen Service Role Key einfügen
 
   try {
-    // 1) Feed laden und parsen
     const rssResponse = await fetch(rssUrl);
     const rssText = await rssResponse.text();
+    // Konvertiere XML in JSON
     const feed = JSON.parse(xml2json(rssText, { compact: true }));
 
-    const items = feed.rss?.channel?.item || [];
-    // 2) Nur letzte 24h
+    const items = feed.rss?.channel?.item;
+    if (!items || !Array.isArray(items)) {
+      return res.status(200).json({ error: "Keine Artikel gefunden" });
+    }
+
+    // Filter: Nur Artikel aus den letzten 24 Stunden
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    const recent = items.filter(it => {
-      const raw = it.pubDate?._text?.trim();
-      if (!raw) return false;
-      return new Date(raw).getTime() >= cutoff;
+    const recentItems = items.filter(item => {
+      const pubDateRaw = item.pubDate?._text?.trim();
+      if (!pubDateRaw) return false;
+      return new Date(pubDateRaw).getTime() >= cutoff;
     });
-    // 3) Sortieren nach Datum desc
-    recent.sort((a, b) =>
-      new Date(b.pubDate?._text.trim()) - new Date(a.pubDate?._text.trim())
+
+    // Sortiere nach Datum absteigend (neueste zuerst)
+    recentItems.sort((a, b) =>
+      new Date(b.pubDate._text.trim()) - new Date(a.pubDate._text.trim())
     );
 
-    // 4) Speichern
     let inserted = 0;
-    for (const it of recent) {
-      const title = it.title?._cdata || it.title?._text || "";
-      const desc = it.description?._cdata || it.description?._text || "";
-      const link = it.link?._text || "";
-      const pubDateRaw = it.pubDate?._text?.trim();
+    // Für jeden Artikel: Volltext automatisch ermitteln und in Supabase einfügen
+    for (const item of recentItems) {
+      const title = item.title?._cdata || item.title?._text || "";
+      const desc = item.description?._cdata || item.description?._text || "";
+      const link = item.link?._text || "";
+      const pubDateRaw = item.pubDate?._text?.trim() || "";
       const zeitstempel = pubDateRaw ? new Date(pubDateRaw).toISOString() : new Date().toISOString();
 
-      if (!title || !link) continue; // Filter
+      if (!title || !link) continue;
 
-      // Insert in Supabase
-      const ins = await fetch(supabaseUrl, {
-        method: "POST",
+      // Automatischer Volltext-Scraper: Hole den Volltext vom Artikel-Link
+      const volltext = await scrapeVolltext(link);
+
+      // Insert in Supabase (ohne Felder "autor" und "format")
+      const insertRes = await fetch(supabaseUrl, {
+        method: 'POST',
         headers: {
           apikey: serviceKey,
-          Authorization: "Bearer " + serviceKey,
-          "Content-Type": "application/json",
-          Prefer: "resolution=merge-duplicates"
+          Authorization: 'Bearer ' + serviceKey,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates'
         },
         body: JSON.stringify({
           titel: title,
           beschreibung: desc,
-          volltext: "",
+          volltext: volltext,
           ausgewählt: false,
           hintergrund: false,
           begründung_hintergrund: "",
           rolle: "",
-          format: "Mittagsupdate",
-          autor: "",
-          zeitstempel
+          // Feld "format" und "autor" entfallen
+          zeitstempel: zeitstempel
         })
       });
-      if (ins.ok) inserted++;
+      if (insertRes.ok) inserted++;
     }
 
     res.status(200).json({ inserted });
