@@ -3,7 +3,7 @@ import { xml2json } from 'xml-js';
 export default async function handler(req, res) {
   const rssUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
   const supabaseUrl = "https://fwqzalxpezqdkplgudix.supabase.co/rest/v1/artikel";
-  const serviceKey = "DEIN_SUPABASE_SERVICE_ROLE_KEY"; // Hier einsetzen!
+  const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o"; // Hier einsetzen!
 
   try {
     const rssResponse = await fetch(rssUrl);
