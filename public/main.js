@@ -37,6 +37,21 @@ async function ladeArtikel() {
 
     articleDiv.innerHTML = `
       <h3>🧠 Supabase: ${artikel.titel}</h3>
+      ${artikel.volltext ? `<details><summary>Volltext</summary><p>${artikel.volltext}</p></details>` : ""}
+      <p><strong>Rolle:</strong> ${artikel.rolle || "-"}</p>
+      <label>
+        <input type="checkbox" ${artikel.ausgewählt ? "checked" : ""} disabled />
+        Ausgewählt
+      </label><br>
+      <label>
+        <input type="checkbox" ${artikel.hintergrund ? "checked" : ""} disabled />
+        Hintergrundstück
+      </label><br>
+      ${artikel.hintergrund && artikel.begründung_hintergrund ? `
+        <label><strong>Begründung:</strong><br>
+          <textarea disabled>${artikel.begründung_hintergrund}</textarea>
+        </label>
+      ` : ""}
     `;
 
     appDiv.appendChild(articleDiv);
