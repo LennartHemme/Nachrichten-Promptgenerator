@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mittagsupdate-Promptgenerator</title>
-  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header>
@@ -15,7 +14,8 @@
 
   <div class="container">
     <div class="top-buttons">
-      <button onclick="updateArticles()">Artikel aktualisieren</button>
+      <!-- Der Button ist erstmal ohne Funktion -->
+      <!-- <button onclick="updateArticles()">Artikel aktualisieren</button> -->
       <button onclick="generatePrompt()">Prompt generieren</button>
     </div>
 
@@ -25,11 +25,11 @@
     </div>
 
     <div id="app">
-      <p>Lade Artikel...</p>
+      <p>Artikel werden hier geladen…</p>
     </div>
 
     <div class="top-buttons">
-      <button onclick="updateArticles()">Artikel aktualisieren</button>
+      <!-- <button onclick="updateArticles()">Artikel aktualisieren</button> -->
       <button onclick="generatePrompt()">Prompt generieren</button>
     </div>
   </div>
@@ -48,6 +48,7 @@
     </div>
   </dialog>
 
-  <script src="/main.js"></script>
+  <!-- ✅ Wichtig: als Modul laden -->
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
