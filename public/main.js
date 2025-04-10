@@ -1,4 +1,4 @@
-console.log("✅ main.js geladen");
+console.log("✅ main.js läuft");
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -8,8 +8,8 @@ const supabase = createClient(
 );
 
 async function ladeArtikel() {
-  const appDiv = document.getElementById("app");
-  appDiv.innerHTML = "Artikel werden geladen…";
+  const app = document.getElementById("app");
+  app.innerHTML = "⏳ Lade Artikel...";
 
   const { data, error } = await supabase
     .from("artikel")
@@ -17,31 +17,39 @@ async function ladeArtikel() {
     .order("zeitstempel", { ascending: false });
 
   if (error) {
-    console.error("Fehler:", error);
-    appDiv.innerHTML = "Fehler beim Laden.";
+    console.error(error);
+    app.innerHTML = "❌ Fehler beim Laden.";
     return;
   }
 
-  if (!data || data.length === 0) {
-    appDiv.innerHTML = "Keine Artikel vorhanden.";
+  if (!data.length) {
+    app.innerHTML = "⚠️ Keine Artikel vorhanden.";
     return;
   }
 
-  appDiv.innerHTML = "";
-  data.forEach(artikel => {
-    const div = document.createElement("div");
-    div.innerHTML = `<h3>${artikel.titel}</h3><p>${artikel.volltext.slice(0, 300)}...</p>`;
-    appDiv.appendChild(div);
+  app.innerHTML = "";
+  data.forEach(a => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <h3>${a.titel}</h3>
+      <p>${a.volltext?.slice(0, 200) || "Kein Volltext."}</p>
+    `;
+    app.appendChild(card);
   });
 }
 
 async function updateArticles() {
+  const btn = document.getElementById("updateBtn");
+  btn.disabled = true;
+  btn.textContent = "⏳ Lade neue Artikel...";
   const res = await fetch("/api/rss");
   const result = await res.json();
-  console.log("🆕 Neue Artikel:", result.inserted);
+  console.log("Neue Artikel:", result.inserted);
   await ladeArtikel();
+  btn.disabled = false;
+  btn.textContent = "Artikel aktualisieren";
 }
 
 window.updateArticles = updateArticles;
-
 updateArticles();
