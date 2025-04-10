@@ -1,20 +1,65 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  'https://fwqzalxpezqdkplgudix.supabase.co',
+  'YOUR_SERVICE_ROLE_KEY' // ⚠️ NICHT dein "anon" key – sondern der SERVICE KEY
+);
+
 export default async function handler(req, res) {
-  const rssUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
+  const feedUrl = "https://www1.wdr.de/nachrichten/rss/nrwkompakt102-rss.xml";
+  const response = await fetch(feedUrl);
+  const xmlText = await response.text();
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(xmlText, "application/xml");
+
+  const items = Array.from(xml.querySelectorAll("item"));
+
+  let inserted = 0;
+
+  for (const item of items) {
+    const title = item.querySelector("title")?.textContent;
+    const link = item.querySelector("link")?.textContent;
+
+    // Check, ob Artikel schon existiert
+    const { data: existing } = await supabase
+      .from("artikel")
+      .select("id")
+      .eq("titel", title)
+      .maybeSingle();
+
+    if (!existing) {
+      // Scraper aufrufen
+      const volltext = await getVolltext(link);
+
+      await supabase.from("artikel").insert({
+        titel: title,
+        volltext,
+        ausgewählt: false,
+        hintergrund: false,
+        begründung_hintergrund: "",
+        rolle: "",
+        format: "Mittagsupdate",
+        autor: ""
+      });
+
+      inserted++;
+    }
+  }
+
+  res.status(200).json({ inserted });
+}
+
+async function getVolltext(url) {
   try {
-    const response = await fetch(rssUrl);
-    const text = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, "text/xml");
-    const items = [...doc.querySelectorAll("item")];
+    const response = await fetch(url);
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
 
-    const daten = items.map(item => ({
-      titel: item.querySelector("title")?.textContent ?? "",
-      link: item.querySelector("link")?.textContent ?? "",
-      datum: item.querySelector("pubDate")?.textContent ?? ""
-    }));
+    const pTags = Array.from(doc.querySelectorAll("p"));
+    const text = pTags.map(p => p.textContent.trim()).join("\n\n");
 
-    res.status(200).json(daten);
-  } catch (error) {
-    res.status(500).json({ error: "RSS-Fehler: " + error.message });
+    return text.slice(0, 8000); // Limit wegen Supabase max. Feldgröße
+  } catch (e) {
+    return "❌ Volltext konnte nicht geladen werden.";
   }
 }
