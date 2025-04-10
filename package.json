@@ -1,6 +1,7 @@
 {
   "type": "module",
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.5",
     "rss-parser": "^3.12.0",
     "node-fetch": "^3.3.2"
   }
