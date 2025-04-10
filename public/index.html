@@ -1,81 +1,41 @@
 <!DOCTYPE html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mittagsupdate Promptgenerator</title>
-  <link rel="stylesheet" href="/style.css" />
-</head>
-<body>
-  <header>
-    <h1>🗞️ Promptgenerator</h1>
-  </header>
-  <main>
-    <section id="artikelListe">Artikel werden geladen…</section>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mittagsupdate-Promptgenerator</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🗞️ Mittagsupdate-Promptgenerator</h1>
+    </header>
+    <main>
+      <section id="artikel-section">
+        <h2>📰 Artikelübersicht</h2>
+        <div id="app">Artikel werden geladen…</div>
+        <button id="updateBtn" onclick="updateArticles()">Artikel aktualisieren</button>
+      </section>
 
-    <section id="promptArea" style="display:none">
-      <label>Autor/in: <input id="autorInput" placeholder="Vorname Nachname" /></label><br/>
-      <label>Begründung für Hintergrund (optional):<br/>
-        <textarea id="begruendungInput"></textarea>
-      </label><br/>
-      <button onclick="generatePrompt()">📋 Prompt erzeugen</button>
-      <pre id="output"></pre>
-    </section>
-  </main>
+      <section id="prompt-section">
+        <h2>📋 Prompt erstellen</h2>
+        <div id="prompt-controls">
+          <label for="autor">Autor(in):</label>
+          <input type="text" id="autor" placeholder="z. B. Vanessa" />
 
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+          <label for="begruendung">Begründung für das Hintergrundstück (optional):</label>
+          <textarea id="begruendung" placeholder="Warum dieses Thema als Hintergrund?"></textarea>
 
-    const supabase = createClient(
-      'https://fwqzalxpezqdkplgudix.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o'
-    );
+          <button id="generatePromptBtn">Prompt erstellen</button>
+          <button id="copyPromptBtn">Prompt kopieren</button>
+        </div>
+        <pre id="promptOutput"></pre>
+      </section>
 
-    async function ladeArtikel() {
-      const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
-        .from("artikel")
-        .select("id,titel,beschreibung,zeitstempel")
-        .gte("zeitstempel", seitGestern)
-        .order("zeitstempel", { ascending: false });
+      <footer>
+        <p>🚀 Generator bereit – aktuelle Artikel auswählen und loslegen!</p>
+      </footer>
 
-      const liste = document.getElementById("artikelListe");
-      if (error || !data.length) {
-        liste.innerHTML = "❌ Keine Artikel gefunden.";
-        return;
-      }
-
-      liste.innerHTML = "<h2>📰 Artikelübersicht</h2>";
-      data.forEach(art => {
-        const el = document.createElement("div");
-        el.className = "card";
-        el.innerHTML = `
-          <label>
-            <input type="checkbox" value="${art.id}" class="artikelCheck"> <b>${art.titel}</b><br>
-            <small>${new Date(art.zeitstempel).toLocaleString()}</small><br>
-            <i>${art.beschreibung}</i>
-          </label>
-        `;
-        liste.appendChild(el);
-      });
-      document.getElementById("promptArea").style.display = "block";
-    }
-
-    window.generatePrompt = async function () {
-      const artikelIds = [...document.querySelectorAll(".artikelCheck:checked")].map(cb => cb.value);
-      const autorName = document.getElementById("autorInput").value;
-      const hintergrundBegruendung = document.getElementById("begruendungInput").value;
-
-      const res = await fetch("/api/prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artikelIds, autorName, hintergrundBegruendung })
-      });
-      const result = await res.json();
-      document.getElementById("output").textContent = result.prompt || result.error;
-    }
-
-    ladeArtikel();
-  </script>
-</body>
+    <script type="module" src="/main.js"></script>
+  </body>
 </html>
