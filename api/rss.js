@@ -15,48 +15,41 @@ export default async function handler(req, res) {
     let inserted = 0;
 
     for (const item of feed.items) {
-      // Prüfe, ob Artikel schon existiert
-      const { data: existing, error: selectError } = await supabase
+      const exists = await supabase
         .from("artikel")
         .select("id")
         .eq("titel", item.title)
         .maybeSingle();
 
-      if (selectError) {
-        console.error("❌ Fehler beim SELECT:", selectError.message);
-        continue;
-      }
+      if (exists.data) continue;
 
-      if (existing) continue;
-
-      // Rufe Diffbot auf
-      let volltext = '';
+      let volltext = "";
       try {
-        const diffbotRes = await fetch(`https://api.diffbot.com/v3/article?token=${process.env.DIFFBOT_TOKEN}&url=${encodeURIComponent(item.link)}`);
-        const diffJson = await diffbotRes.json();
+        const diffbot = await fetch(`https://api.diffbot.com/v3/article?token=${process.env.DIFFBOT_TOKEN}&url=${encodeURIComponent(item.link)}`);
+        const diffJson = await diffbot.json();
         volltext = diffJson?.objects?.[0]?.text || '';
       } catch (err) {
-        console.warn(`⚠️ Diffbot-Fehler bei Artikel "${item.title}":`, err.message);
+        console.error("❌ Fehler beim Abrufen von Diffbot:", err.message);
       }
 
-      const { error: insertError } = await supabase.from("artikel").insert([{
+      const { error } = await supabase.from("artikel").insert([{
         titel: item.title,
         beschreibung: item.contentSnippet || '',
         zeitstempel: new Date(item.pubDate).toISOString(),
-        volltext: volltext,
-        link: item.link
+        volltext
       }]);
 
-      if (!insertError) {
-        inserted++;
-      } else {
-        console.error("❌ Fehler beim INSERT:", insertError.message);
+      if (error) {
+        console.error("❌ Fehler beim Einfügen in Supabase:", error.message);
+        continue;
       }
+
+      inserted++;
     }
 
     res.status(200).json({ inserted });
   } catch (e) {
-    console.error("❌ Fehler im Handler:", e.message);
-    res.status(500).json({ error: "Feed konnte nicht verarbeitet werden." });
+    console.error("❌ Genereller Fehler in /api/rss:", e.message);
+    res.status(500).json({ error: e.message });
   }
 }
