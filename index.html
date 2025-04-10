@@ -49,5 +49,29 @@
   </dialog>
 
   <script src="./main.js"></script>
+  <script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+  const supabase = createClient(
+    'https://fwqzalxpezqdkplgudix.supabase.co', // 👉 ersetzen!
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODU1MDMsImV4cCI6MjA1OTg2MTUwM30.XIAIYCUzNxvRM9R-S3uLLz-XPUC8i7jWSWmhwyWyi4A'              // 👉 ersetzen!
+  );
+
+  async function ladeArtikel() {
+    const { data, error } = await supabase
+      .from('artikel')
+      .select('*')
+      .order('zeitstempel', { ascending: false });
+
+    if (error) {
+      console.error('❌ Fehler beim Abrufen:', error);
+    } else {
+      console.log('✅ Geladene Artikel:', data);
+    }
+  }
+
+  // Wird direkt beim Laden der Seite ausgeführt
+  ladeArtikel();
+</script>
 </body>
 </html>
