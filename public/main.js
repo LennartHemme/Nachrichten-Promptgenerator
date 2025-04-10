@@ -1,133 +1,114 @@
-console.log("✅ main.js läuft");
+// 📄 main.js
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const supabase = createClient(
   'https://fwqzalxpezqdkplgudix.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o'  // Ersetze diesen durch deinen anon Key
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o'
 );
 
-// Globale Variable für die Promptvorlage (Systemteil)
-let promptTemplate = `System-Vorlage:
-Du bist ein Nachrichtenmoderator/in beim Mittagsupdate.
-Fasse die ausgewählten Artikel prägnant zusammen.
-------------------------------------`;
+const promptVorlageInput = document.getElementById("prompt-vorlage");
+const speichernBtn = document.getElementById("vorlage-speichern");
 
-// Hier kannst du die Vorlage über ein Eingabefeld bearbeiten – standardmäßig in localStorage speichern
-function loadPromptTemplate() {
-  const stored = localStorage.getItem("promptTemplate");
-  if (stored) {
-    promptTemplate = stored;
-  }
-  document.getElementById("promptTemplate").value = promptTemplate;
+// 🧠 Vorlage speichern
+speichernBtn.addEventListener("click", async () => {
+  const text = promptVorlageInput.value;
+  localStorage.setItem("promptSystemVorlage", text);
+  alert("Vorlage gespeichert!");
+});
+
+function formatDate(d) {
+  return new Date(d).toLocaleString("de-DE", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
-function savePromptTemplate() {
-  promptTemplate = document.getElementById("promptTemplate").value;
-  localStorage.setItem("promptTemplate", promptTemplate);
-}
-
-// Laden der Artikel (nur letzte 24h)
 async function ladeArtikel() {
   const app = document.getElementById("app");
-  app.innerHTML = "⏳ Artikel werden geladen…";
+  app.innerHTML = "⏳ Lade Artikel...";
+
   const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
     .from("artikel")
-    .select("*")
+    .select("id, titel, beschreibung, link, volltext, prioritaet, begruendung, hintergrund, zeitstempel")
     .gte("zeitstempel", seitGestern)
     .order("zeitstempel", { ascending: false });
 
   if (error) {
     console.error(error);
-    app.innerHTML = "❌ Fehler beim Laden der Artikel.";
-    return;
-  }
-  if (!data || data.length === 0) {
-    app.innerHTML = "⚠️ Keine Artikel aus den letzten 24 Stunden gefunden.";
+    app.innerHTML = "❌ Fehler beim Laden.";
     return;
   }
 
-  // Ausgabe der Artikel mit Auswahlmöglichkeiten (Dropdown und Begründung)
+  if (!data.length) {
+    app.innerHTML = "⚠️ Keine Artikel aus den letzten 24 Stunden.";
+    return;
+  }
+
   app.innerHTML = "";
-  window.articleSelection = {}; // global für Prompt-Generierung
-  data.forEach(art => {
-    // Initialisiere Auswahl für jeden Artikel
-    articleSelection[art.id] = { rolle: "nicht verwenden", begruendung: "" };
 
+  data.forEach((a) => {
     const card = document.createElement("div");
     card.className = "card";
+
+    const prioritaetOptions = ["Artikel 1", "Artikel 2", "Artikel 3", "Artikel 4", "Hintergrund"]
+      .map(opt => `<option value="${opt}" ${a.prioritaet === opt ? 'selected' : ''}>${opt}</option>`) 
+      .join("");
+
     card.innerHTML = `
-      <div class="card-content">
-        <h3><a href="${art.link}" target="_blank">${art.titel}</a></h3>
-        <p>${art.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
-        <small>📅 ${new Date(art.zeitstempel).toLocaleString("de-DE")}</small>
-      </div>
-      <div class="card-controls">
-        <label>Einordnen als:
-          <select id="roleSelect-${art.id}">
-            <option value="nicht verwenden">Nicht verwenden</option>
-            <option value="artikel1">Artikel 1</option>
-            <option value="artikel2">Artikel 2</option>
-            <option value="artikel3">Artikel 3</option>
-            <option value="artikel4">Artikel 4</option>
-            <option value="hintergrund">Hintergrundstück</option>
-          </select>
-        </label>
-        <br/>
-        <label>Begründung (optional):
-          <input type="text" id="begr-${art.id}" placeholder="Begründung"/>
-        </label>
-      </div>
+      <h3>${a.titel}</h3>
+      <p>${a.beschreibung}</p>
+      <small>📅 ${formatDate(a.zeitstempel)} | <a href="${a.link}" target="_blank">🔗 Link</a></small>
+      <textarea placeholder="Optionaler Begründungstext..." data-id="${a.id}" class="begruendung">${a.begruendung || ""}</textarea>
+      <label>Einordnen als:
+        <select class="prioritaet" data-id="${a.id}">
+          <option value="">Keine Auswahl</option>
+          ${prioritaetOptions}
+        </select>
+      </label>
     `;
     app.appendChild(card);
+  });
 
-    // Event-Listener für Dropdown
-    const roleSelect = document.getElementById(`roleSelect-${art.id}`);
-    roleSelect.addEventListener("change", ev => {
-      articleSelection[art.id].rolle = ev.target.value;
-      checkDuplicatePrioritäten();
+  // Event-Handler für Auswahl + Begründung speichern
+  document.querySelectorAll(".prioritaet").forEach(sel => {
+    sel.addEventListener("change", async (e) => {
+      const id = e.target.dataset.id;
+      const prioritaet = e.target.value;
+      const begruendung = document.querySelector(`.begruendung[data-id='${id}']`).value;
+      await supabase.from("artikel").update({ prioritaet, begruendung }).eq("id", id);
+      ladeArtikel(); // Reload zum doppelten Filtern
     });
-    // Event-Listener für Begründung
-    const begrInput = document.getElementById(`begr-${art.id}`);
-    begrInput.addEventListener("input", ev => {
-      articleSelection[art.id].begruendung = ev.target.value;
+  });
+
+  document.querySelectorAll(".begruendung").forEach(txt => {
+    txt.addEventListener("blur", async (e) => {
+      const id = e.target.dataset.id;
+      const begruendung = e.target.value;
+      await supabase.from("artikel").update({ begruendung }).eq("id", id);
     });
   });
 }
 
-// Überprüft, ob kritische Prioritäten doppelt vergeben wurden (z.B. "artikel1" oder "hintergrund")
-function checkDuplicatePrioritäten() {
-  const count = {};
-  Object.values(articleSelection).forEach(sel => {
-    const r = sel.rolle;
-    if (!count[r]) count[r] = 0;
-    count[r]++;
-  });
-  if (count["artikel1"] > 1 || count["hintergrund"] > 1) {
-    console.warn("Doppelte Priorität: Bitte nur einen Artikel pro kritischer Kategorie auswählen.");
-  }
+// 🧠 Prompt generieren
+async function generierePrompt() {
+  const { data } = await supabase.from("artikel").select("prioritaet, titel, volltext, begruendung");
+  const systemVorlage = localStorage.getItem("promptSystemVorlage") || "";
+
+  const sortierte = ["Artikel 1", "Artikel 2", "Artikel 3", "Artikel 4", "Hintergrund"]
+    .map(label => data.find(d => d.prioritaet === label))
+    .filter(Boolean);
+
+  const blocks = sortierte.map(a => `### ${a.prioritaet}: ${a.titel}
+${a.volltext}
+${a.begruendung ? `\n🧠 Begründung: ${a.begruendung}` : ""}`).join("\n\n");
+
+  const prompt = `--- GPT-PROMPT ---\n${systemVorlage}\n\n${blocks}`;
+  navigator.clipboard.writeText(prompt);
+  alert("Prompt in Zwischenablage kopiert!");
 }
 
-// Prompt generieren: System-Prompt plus dynamisch zusammengefassten Content aus den Artikel-Auswahlen.
-// Dabei wird der automatisch gescrapete Volltext aus der Supabase verwendet.
-async function generatePrompt() {
-  const nameField = document.getElementById("autorName").value.trim() || "n.n.";
-  let prompt = promptTemplate + "\n\n" + "Name: " + nameField + "\n\n";
-  prompt += "Ausgewählte Artikel:\n";
-  
-  // Hole Artikel aus Supabase (letzte 24h)
-  const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from("artikel")
-    .select("*")
-    .gte("zeitstempel", seitGestern)
-    .order("zeitstempel", { ascending: false });
-
-  if (error || !data) {
-    prompt += "Fehler beim Abrufen der Artikel.";
-  } else {
-    data.forEach(art => {
-      const sel = articleSelection[art.id];
-      if (!sel || sel.rolle
+window.generierePrompt = generierePrompt;
+window.addEventListener("DOMContentLoaded", ladeArtikel);
