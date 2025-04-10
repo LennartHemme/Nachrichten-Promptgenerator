@@ -145,3 +145,17 @@ dialog {
 .modal-footer button {
   margin-left: 10px;
 }
+
+.artikel {
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.artikel textarea {
+  width: 100%;
+  height: 4rem;
+  margin-top: 0.5rem;
+}
