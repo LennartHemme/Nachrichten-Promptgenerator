@@ -1,4 +1,3 @@
-// /public/main.js
 console.log("✅ main.js läuft");
 
 async function getConfig() {
@@ -12,16 +11,21 @@ let supabase;
 
 getConfig().then(config => {
   supabase = createClient(config.supabaseUrl, config.publicAnonKey);
-  ladeArtikel();
+  updateArticles();
 });
+
+let artikelListe = [];
 
 async function ladeArtikel() {
   const app = document.getElementById("app");
   app.innerHTML = "⏳ Lade Artikel...";
 
+  const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
   const { data, error } = await supabase
     .from("artikel")
-    .select("id, titel, beschreibung, zeitstempel, volltext")
+    .select("*")
+    .gte("zeitstempel", seitGestern)
     .order("zeitstempel", { ascending: false });
 
   if (error) {
@@ -30,71 +34,92 @@ async function ladeArtikel() {
     return;
   }
 
-  app.innerHTML = `<h2>📰 Artikelübersicht</h2>`;
+  artikelListe = data;
+  renderArtikel();
+}
 
-  const roles = ['artikel1', 'artikel2', 'artikel3', 'artikel4', 'hintergrund'];
-  const selections = {};
+function renderArtikel() {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
 
-  data.forEach(a => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "card";
-    wrapper.innerHTML = `
-      <h3>${a.titel}</h3>
-      <p>${a.beschreibung || "(Kein Beschreibungstext)"}</p>
-      <small>📅 ${new Date(a.zeitstempel).toLocaleString()}</small>
-      <div class="select-row">
-        ${roles.map(role => `
+  artikelListe.forEach((a, index) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="flex">
+        <div style="flex:3;">
+          <h3>${a.titel}</h3>
+          <p>${a.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
+          <small>📅 ${new Date(a.zeitstempel).toLocaleString()}</small><br>
+          <a href="${a.link}" target="_blank">🔗 Zum Artikel</a>
+        </div>
+        <div style="flex:1; padding-left:10px;">
+          <select class="prio" data-index="${index}">
+            <option value="">- Priorität -</option>
+            <option value="1">Artikel 1</option>
+            <option value="2">Artikel 2</option>
+            <option value="3">Artikel 3</option>
+            <option value="4">Artikel 4</option>
+          </select><br>
           <label>
-            <input type="radio" name="${role}" value="${a.id}" onchange="updateSelection('${role}', ${a.id})">
-            ${role === 'hintergrund' ? 'Hintergrund' : role.replace('artikel', 'Artikel ')}
-          </label>`).join('')}
-      </div>
-      <div class="reason" id="reason-${a.id}" style="display:none">
-        <label>Begründung (optional): <input type="text" id="input-${a.id}" /></label>
+            <input type="checkbox" class="hintergrund" data-index="${index}" /> Hintergrundstück
+          </label><br>
+          <textarea class="begruendung" data-index="${index}" placeholder="Begründung (optional)"></textarea>
+        </div>
       </div>
     `;
-    app.appendChild(wrapper);
+    app.appendChild(card);
   });
 
-  window.updateSelection = (role, id) => {
-    selections[role] = id;
-    // Hintergrund: Begründung anzeigen
-    document.querySelectorAll('.reason').forEach(e => e.style.display = 'none');
-    if (role === 'hintergrund') {
-      document.getElementById(`reason-${id}`).style.display = 'block';
-    }
-    generatePrompt(data, selections);
-  };
+  const promptBtn = document.createElement("button");
+  promptBtn.textContent = "Prompt generieren";
+  promptBtn.onclick = generierePrompt;
+  app.appendChild(promptBtn);
 }
 
-async function generatePrompt(data, selections) {
-  const res = await fetch('/data/promptvorlage.txt');
-  const promptTemplate = await res.text();
+function generierePrompt() {
+  const prios = [...document.querySelectorAll('.prio')];
+  const prioWerte = prios.map(p => p.value).filter(Boolean);
 
-  let promptText = promptTemplate + "\n\n";
-  const used = new Set();
-
-  ['artikel1', 'artikel2', 'artikel3', 'artikel4'].forEach((role, idx) => {
-    const id = selections[role];
-    if (id && used.has(id)) {
-      promptText += `⚠️ Artikel ${idx + 1} ist doppelt ausgewählt!\n`;
-    }
-    const artikel = data.find(a => a.id === id);
-    if (artikel) {
-      used.add(id);
-      promptText += `Artikel ${idx + 1}: ${artikel.titel}\n${artikel.volltext}\n\n`;
-    }
-  });
-
-  const hId = selections['hintergrund'];
-  if (hId) {
-    const a = data.find(a => a.id === hId);
-    if (a) {
-      const reason = document.getElementById(`input-${a.id}`).value;
-      promptText += `Hintergrundstück: ${a.titel}\n${reason ? 'Begründung: ' + reason + '\n' : ''}${a.volltext}\n`;
-    }
+  if (new Set(prioWerte).size !== prioWerte.length) {
+    alert("⚠️ Doppelte Priorität vergeben!");
+    return;
   }
 
-  const out = document.getElementById("prompt");
-  out.value = promptText;
+  fetch('/prompt-vorlage.txt')
+    .then(res => res.text())
+    .then(vorlage => {
+      let prompt = vorlage;
+
+      prios.forEach(select => {
+        if (select.value) {
+          const artikel = artikelListe[select.dataset.index];
+          prompt += `\n\nArtikel ${select.value}:\n${artikel.volltext}`;
+        }
+      });
+
+      const hintergruende = [...document.querySelectorAll('.hintergrund')]
+        .filter(c => c.checked);
+
+      hintergruende.forEach(h => {
+        const artikel = artikelListe[h.dataset.index];
+        const begruendung = document.querySelector(`.begruendung[data-index="${h.dataset.index}"]`).value || "keine Begründung";
+        prompt += `\n\nHintergrundstück:\n${artikel.volltext}\nBegründung: ${begruendung}`;
+      });
+
+      navigator.clipboard.writeText(prompt);
+      alert("✅ Prompt kopiert!");
+    });
 }
+
+async function updateArticles() {
+  const btn = document.getElementById("updateBtn");
+  btn.disabled = true;
+  btn.textContent = "⏳ Lade neue Artikel...";
+  await fetch("/api/rss");
+  await ladeArtikel();
+  btn.disabled = false;
+  btn.textContent = "Artikel aktualisieren";
+}
+
+window.updateArticles = updateArticles;
