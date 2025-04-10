@@ -1,79 +1,101 @@
-console.log("✅ main.js läuft");
+// public/main.js
+
+console.log("✅ Promptgenerator-Frontend geladen");
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 let supabase;
 
 async function getConfig() {
-  try {
-    const res = await fetch('/api/config');
-    if (!res.ok) throw new Error(`Fehler beim Abrufen der Config: ${res.status}`);
-    const config = await res.json();
-    return config;
-  } catch (err) {
-    console.error("❌ getConfig fehlgeschlagen:", err.message);
-    document.getElementById("app").innerHTML = "❌ Fehler beim Initialisieren.";
-  }
+  const res = await fetch('/api/config');
+  const config = await res.json();
+  return config;
 }
 
 getConfig().then(config => {
-  if (!config) return;
   supabase = createClient(config.supabaseUrl, config.publicAnonKey);
-  updateArticles(); // erst dann starten
+  ladeArtikel();
 });
 
 async function ladeArtikel() {
   const app = document.getElementById("app");
   app.innerHTML = "⏳ Lade Artikel...";
 
-  const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
   const { data, error } = await supabase
     .from("artikel")
-    .select("*")
-    .gte("zeitstempel", seitGestern)
+    .select("id, titel, beschreibung, zeitstempel, link")
     .order("zeitstempel", { ascending: false });
 
   if (error) {
-    console.error("❌ Supabase-Fehler:", error.message);
+    console.error(error);
     app.innerHTML = "❌ Fehler beim Laden.";
     return;
   }
 
-  if (!data.length) {
-    app.innerHTML = "⚠️ Keine Artikel aus den letzten 24 Stunden.";
-    return;
-  }
-
-  app.innerHTML = "";
+  app.innerHTML = '<h2>📰 Artikelübersicht</h2>';
   data.forEach(a => {
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `
       <h3>${a.titel}</h3>
-      <p>${a.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
-      <small>📅 ${new Date(a.zeitstempel).toLocaleString()}</small>
+      <p>${a.beschreibung || "Kein Beschreibungstext."}</p>
+      <small>🕒 ${new Date(a.zeitstempel).toLocaleString()}</small><br>
+      <a href="${a.link}" target="_blank">🔗 Zum Originalartikel</a><br>
+      <label>Einordnen als:
+        <select onchange="handleSelection('${a.id}', this.value)">
+          <option value="">-</option>
+          <option value="1">Priorität 1</option>
+          <option value="2">Priorität 2</option>
+          <option value="3">Priorität 3</option>
+          <option value="4">Priorität 4</option>
+          <option value="hintergrund">Hintergrund</option>
+        </select>
+      </label>
+      <br>
+      <textarea id="begruendung-${a.id}" placeholder="(Optional) Begründung für Hintergrund" style="display:none"></textarea>
     `;
     app.appendChild(card);
   });
+
+  const generateBtn = document.createElement("button");
+  generateBtn.textContent = "🎙️ Prompt generieren";
+  generateBtn.onclick = generatePrompt;
+  app.appendChild(generateBtn);
 }
 
-async function updateArticles() {
-  const btn = document.getElementById("updateBtn");
-  if (!btn) return;
+const auswahl = {};
 
-  btn.disabled = true;
-  btn.textContent = "⏳ Lade neue Artikel...";
-  try {
-    const res = await fetch("/api/rss");
-    const result = await res.json();
-    console.log("🆕 Neue Artikel:", result.inserted);
-    await ladeArtikel();
-  } catch (err) {
-    console.error("❌ updateArticles fehlgeschlagen:", err.message);
+window.handleSelection = (id, value) => {
+  if (value === 'hintergrund') {
+    document.getElementById(`begruendung-${id}`).style.display = 'block';
+  } else {
+    document.getElementById(`begruendung-${id}`).style.display = 'none';
   }
-  btn.disabled = false;
-  btn.textContent = "Artikel aktualisieren";
-}
+  auswahl[id] = value;
+};
 
-window.updateArticles = updateArticles;
+async function generatePrompt() {
+  const btn = document.querySelector("button");
+  btn.disabled = true;
+  btn.textContent = "⏳ Erzeuge Prompt...";
+
+  const response = await fetch('/api/prompt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      auswahl,
+      begruendungen: Object.fromEntries(
+        Object.entries(auswahl)
+          .filter(([id, v]) => v === 'hintergrund')
+          .map(([id]) => [id, document.getElementById(`begruendung-${id}`).value])
+      )
+    })
+  });
+
+  const result = await response.json();
+  const pre = document.createElement("pre");
+  pre.textContent = result.prompt;
+  document.getElementById("app").appendChild(pre);
+  btn.disabled = false;
+  btn.textContent = "🎙️ Prompt generieren";
+}
