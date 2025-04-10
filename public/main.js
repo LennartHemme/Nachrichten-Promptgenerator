@@ -1,65 +1,46 @@
+console.log("✅ NEUE main.js WIRD GELADEN (aus /public)");
 
-document.addEventListener("DOMContentLoaded", updateArticles);
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-function updateArticles() {
-  const app = document.getElementById("app");
-  app.innerHTML = "Lade Artikel...";
+const supabase = createClient(
+  'https://fwqzalxpezqdkplgudix.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODU1MDMsImV4cCI6MjA1OTg2MTUwM30.XIAIYCUzNxvRM9R-S3uLLz-XPUC8i7jWSWmhwyWyi4A'
+);
 
-  const feedUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
-  const proxyUrl = `/api/proxy?url=${encodeURIComponent(feedUrl)}`;
+async function ladeArtikel() {
+  const appDiv = document.getElementById("app");
+  appDiv.innerHTML = "<p>🧪 Lade Artikel aus Supabase…</p>";
 
-  fetch(proxyUrl)
-    .then(res => res.text())
-    .then(parseRSS)
-    .then(renderArticles)
-    .catch(err => {
-      app.innerHTML = "Fehler beim Laden der Artikel.";
-      console.error(err);
-    });
+  const { data, error } = await supabase
+    .from("artikel")
+    .select("*")
+    .order("zeitstempel", { ascending: false });
+
+  console.log("📦 Supabase-Antwort:", data);
+
+  if (error) {
+    console.error("❌ Fehler beim Abrufen:", error);
+    appDiv.innerHTML = "<p>Fehler beim Laden der Artikel.</p>";
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    appDiv.innerHTML = "<p>Keine Artikel gefunden.</p>";
+    return;
+  }
+
+  appDiv.innerHTML = "";
+
+  data.forEach((artikel) => {
+    const articleDiv = document.createElement("div");
+    articleDiv.classList.add("artikel");
+
+    articleDiv.innerHTML = `
+      <h3>🧠 Supabase: ${artikel.titel}</h3>
+    `;
+
+    appDiv.appendChild(articleDiv);
+  });
 }
 
-function parseRSS(xmlText) {
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(xmlText, "text/xml");
-  const items = Array.from(xml.querySelectorAll("item"));
-  return items.slice(0, 5).map(item => ({
-    titel: item.querySelector("title").textContent,
-    link: item.querySelector("link").textContent,
-    teaser: item.querySelector("description")?.textContent.split(".")[0] || ""
-  }));
-}
-
-function renderArticles(articles) {
-  const app = document.getElementById("app");
-  app.innerHTML = '<div class="artikel-grid">' +
-    articles.map(a => `
-      <div class="card">
-        <strong>${a.titel}</strong>
-        <div class="artikel-teaser">${a.teaser}</div>
-        <a href="${a.link}" target="_blank">Artikel ansehen</a>
-      </div>
-    `).join('') + '</div>';
-}
-
-function generatePrompt() {
-  const name = document.getElementById("autorName").value || "Unbekannt";
-  const text = `Datum: ${new Date().toLocaleDateString("de-DE")}
-Name: ${name}
-
---- GPT-PROMPT ---
-
-Beispielinhalt`;
-  document.getElementById("promptText").textContent = text;
-  document.getElementById("promptDialog").showModal();
-}
-
-function copyPrompt() {
-  const text = document.getElementById("promptText").textContent;
-  navigator.clipboard.writeText(text)
-    .then(() => alert("📋 Prompt wurde in die Zwischenablage kopiert!"))
-    .catch(() => alert("❌ Kopieren fehlgeschlagen."));
-}
-
-function closeDialog() {
-  document.getElementById("promptDialog").close();
-}
+ladeArtikel();
