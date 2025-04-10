@@ -58,20 +58,52 @@
   );
 
   async function ladeArtikel() {
-    const { data, error } = await supabase
-      .from('artikel')
-      .select('*')
-      .order('zeitstempel', { ascending: false });
+  const appDiv = document.getElementById("app");
+  appDiv.innerHTML = ""; // vorherigen Inhalt löschen
 
-    if (error) {
-      console.error('❌ Fehler beim Abrufen:', error);
-    } else {
-      console.log('✅ Geladene Artikel:', data);
-    }
+  const { data, error } = await supabase
+    .from("artikel")
+    .select("*")
+    .order("zeitstempel", { ascending: false });
+
+  if (error) {
+    appDiv.innerHTML = "<p>❌ Fehler beim Laden der Artikel.</p>";
+    console.error("❌ Fehler beim Abrufen:", error);
+    return;
   }
 
-  // Wird direkt beim Laden der Seite ausgeführt
-  ladeArtikel();
+  if (!data || data.length === 0) {
+    appDiv.innerHTML = "<p>Keine Artikel gefunden.</p>";
+    return;
+  }
+
+  data.forEach((artikel) => {
+    const articleDiv = document.createElement("div");
+    articleDiv.classList.add("artikel");
+
+    articleDiv.innerHTML = `
+      <h3>${artikel.titel}</h3>
+
+      <label>
+        <input type="checkbox" ${artikel.ausgewählt ? "checked" : ""} disabled />
+        Ausgewählt
+      </label><br>
+
+      <label>
+        <input type="checkbox" ${artikel.hintergrund ? "checked" : ""} disabled />
+        Hintergrundstück
+      </label><br>
+
+      ${artikel.hintergrund && artikel.begründung_hintergrund ? `
+        <label><strong>Begründung:</strong><br>
+          <textarea disabled>${artikel.begründung_hintergrund}</textarea>
+        </label>
+      ` : ""}
+    `;
+
+    appDiv.appendChild(articleDiv);
+  });
+}
 </script>
 </body>
 </html>
