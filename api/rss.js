@@ -2,11 +2,11 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   'https://fwqzalxpezqdkplgudix.supabase.co',
-  'YOUR_SERVICE_ROLE_KEY' // ⚠️ NICHT dein "anon" key – sondern der SERVICE KEY
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o' // ⚠️ NICHT dein "anon" key – sondern der SERVICE KEY
 );
 
 export default async function handler(req, res) {
-  const feedUrl = "https://www1.wdr.de/nachrichten/rss/nrwkompakt102-rss.xml";
+  const feedUrl = "https://https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
   const response = await fetch(feedUrl);
   const xmlText = await response.text();
   const parser = new DOMParser();
