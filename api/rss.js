@@ -1,79 +1,80 @@
 import { createClient } from '@supabase/supabase-js';
+import * as cheerio from 'cheerio'; // funktioniert in Vercel Edge Functions (wenn installiert)
 
-// Supabase Service Key (⚠️ nicht den "anon"-Key verwenden!)
+// Service Role Key verwenden (nicht den "anon"-Key!)
 const supabase = createClient(
   'https://fwqzalxpezqdkplgudix.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o' // 🛑 diesen Schlüssel bitte ersetzen
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o'
 );
 
 export default async function handler(req, res) {
-  const feedUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
-
   try {
-    const feedResponse = await fetch(feedUrl);
-    const feedText = await feedResponse.text();
+    const rssUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
+    const rssResponse = await fetch(rssUrl);
+    const rssText = await rssResponse.text();
 
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(feedText, "application/xml");
-    const items = Array.from(xml.querySelectorAll("item"));
-
+    const items = Array.from(rssText.matchAll(/<item>(.*?)<\/item>/gs)).map(match => match[1]);
     let inserted = 0;
 
     for (const item of items) {
-      const title = item.querySelector("title")?.textContent;
-      const link = item.querySelector("link")?.textContent;
+      const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
+      const linkMatch = item.match(/<link>(.*?)<\/link>/);
 
-      // Titel oder Link fehlen → überspringen
-      if (!title || !link) continue;
+      if (!titleMatch || !linkMatch) continue;
 
-      // Prüfen, ob Artikel schon existiert
+      const title = titleMatch[1];
+      const link = linkMatch[1];
+
+      // Prüfen, ob Artikel bereits vorhanden
       const { data: exists } = await supabase
         .from("artikel")
         .select("id")
         .eq("titel", title)
         .maybeSingle();
 
-      if (!exists) {
-        const volltext = await scrapeVolltext(link);
+      if (exists) continue;
 
-        await supabase.from("artikel").insert({
-          titel: title,
-          volltext,
-          ausgewählt: false,
-          hintergrund: false,
-          begründung_hintergrund: "",
-          rolle: "",
-          format: "Mittagsupdate",
-          autor: ""
-        });
+      // Volltext scrapen
+      const volltext = await scrapeVolltext(link);
 
-        inserted++;
-      }
+      // In Supabase einfügen
+      await supabase.from("artikel").insert({
+        titel: title,
+        volltext,
+        ausgewählt: false,
+        hintergrund: false,
+        begründung_hintergrund: "",
+        rolle: "",
+        format: "Mittagsupdate",
+        autor: ""
+      });
+
+      inserted++;
     }
 
     return res.status(200).json({ inserted });
 
-  } catch (error) {
-    console.error("❌ Fehler beim Abrufen des Feeds:", error);
-    return res.status(500).json({ error: "Feed konnte nicht geladen werden." });
+  } catch (err) {
+    console.error("❌ Fehler beim RSS-Import:", err);
+    return res.status(500).json({ error: "Interner Fehler beim RSS-Import" });
   }
 }
 
-// 🧠 Einfache Scraper-Logik für Volltext
 async function scrapeVolltext(url) {
   try {
     const response = await fetch(url);
     const html = await response.text();
-    const doc = new DOMParser().parseFromString(html, "text/html");
 
-    // Emscher-Lippe-Artikel: Absätze stehen im Inhaltsbereich
-    const paragraphs = Array.from(doc.querySelectorAll("p"))
-      .map(p => p.textContent.trim())
-      .filter(Boolean);
+    const matchStart = html.indexOf('<div class="text">');
+    const matchEnd = html.indexOf('<div class="articlefunctions">');
 
-    return paragraphs.join("\n\n").slice(0, 8000); // max Länge Supabase Text
+    if (matchStart === -1 || matchEnd === -1 || matchEnd <= matchStart) return "";
+
+    const content = html.slice(matchStart, matchEnd);
+    const clean = content.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+    return clean.slice(0, 8000);
   } catch (err) {
-    console.error("⚠️ Fehler beim Scrapen:", err);
     return "❌ Volltext konnte nicht geladen werden.";
   }
 }
