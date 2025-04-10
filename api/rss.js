@@ -6,11 +6,8 @@ export default async function handler(req, res) {
   const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o"; // Ersetze diesen Platzhalter durch deinen vollständigen Service Role Key
 
   try {
-    // RSS-Feed abrufen
     const rssResponse = await fetch(rssUrl);
     const rssText = await rssResponse.text();
-
-    // XML in JSON umwandeln
     const feed = JSON.parse(xml2json(rssText, { compact: true }));
 
     const items = feed.rss?.channel?.item;
@@ -18,7 +15,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ error: "Keine Artikel gefunden" });
     }
 
-    // Filter: Nur Artikel aus den letzten 24 Stunden berücksichtigen
+    // Filter: Nur Artikel aus den letzten 24 Stunden
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     const recentItems = items.filter(item => {
       const pubDateRaw = item.pubDate?._text?.trim();
@@ -27,22 +24,35 @@ export default async function handler(req, res) {
       return pubDate >= cutoff;
     });
 
-    // Sortiere nach Datum absteigend (neueste zuerst)
+    // Sortieren: Neueste Artikel zuerst
     recentItems.sort((a, b) => 
       new Date(b.pubDate._text.trim()) - new Date(a.pubDate._text.trim())
     );
 
+    // Bereite Artikel vor, inklusive Formatierung des Datums
+    const articles = recentItems.map(item => {
+      const pubDateRaw = item.pubDate?._text.trim();
+      const pubDateObj = new Date(pubDateRaw);
+      const formattedDate = pubDateObj.toLocaleString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      return {
+        titel: item.title?._cdata || item.title?._text || "",
+        beschreibung: item.description?._cdata || item.description?._text || "",
+        link: item.link?._text || "",
+        zeitstempel: pubDateObj.toISOString(),
+        pubDateFormatted: formattedDate
+      };
+    });
+
+    // Insert: Füge Artikel in Supabase ein
     let inserted = 0;
-    for (const item of recentItems) {
-      const title = item.title?._cdata || item.title?._text || "";
-      const link = item.link?._text || "";
-      const description = item.description?._cdata || item.description?._text || "";
-      const pubDateRaw = item.pubDate?._text.trim() || "";
-      const zeitstempel = pubDateRaw ? new Date(pubDateRaw).toISOString() : new Date().toISOString();
-
-      if (!title || !link) continue; // Überspringe Artikel ohne Titel oder Link
-
-      // INSERT in Supabase via REST-API
+    for (const art of articles) {
+      if (!art.titel || !art.link) continue;
       const insertRes = await fetch(supabaseUrl, {
         method: 'POST',
         headers: {
@@ -52,24 +62,25 @@ export default async function handler(req, res) {
           Prefer: 'resolution=merge-duplicates'
         },
         body: JSON.stringify({
-          titel: title,
-          beschreibung: description,
-          volltext: "wird nachgeladen...",  // Falls du später einen Volltext-Scraper einbaust
+          titel: art.titel,
+          beschreibung: art.beschreibung,
+          volltext: "wird nachgeladen...", // Platzhalter für späteren Volltext-Scraper
           ausgewählt: false,
           hintergrund: false,
           begründung_hintergrund: "",
           rolle: "",
           format: "Mittagsupdate",
           autor: "",
-          zeitstempel: zeitstempel
+          zeitstempel: art.zeitstempel
         })
       });
-
-      if (insertRes.ok) inserted++;
+      if (insertRes.ok) {
+        inserted++;
+      }
     }
 
-    res.status(200).json({ inserted });
+    return res.status(200).json({ inserted, articles });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }
