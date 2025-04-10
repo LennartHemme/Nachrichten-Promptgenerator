@@ -1,37 +1,35 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🗞️ Mittagsupdate-Promptgenerator</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mittagsupdate-Promptgenerator</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header>
     <h1>🗞️ Mittagsupdate-Promptgenerator</h1>
   </header>
-
   <main>
     <section>
-      <button id="updateBtn" onclick="updateArticles()">Artikel aktualisieren</button>
-    </section>
-
-    <section>
       <h2>📰 Artikelübersicht</h2>
+      <button id="updateBtn" onclick="updateArticles()">Artikel aktualisieren</button>
       <div id="app">Artikel werden geladen…</div>
     </section>
 
     <section>
-      <h2>🧠 Auswahl der Artikel für den Prompt</h2>
-      <div id="auswahl"></div>
-      <label for="begruendung">📝 Begründung für das Hintergrundstück (optional):</label>
-      <input type="text" id="begruendung" placeholder="z. B. besonders relevant oder exklusiv" />
+      <h2>✍️ Auswahl für den Prompt</h2>
+      <form id="promptForm">
+        <div class="auswahl" id="auswahlContainer"></div>
+        <label for="begruendung">🧠 Begründung für das Hintergrundstück (optional):</label>
+        <textarea id="begruendung" rows="3"></textarea>
+        <button type="submit">🎯 Prompt generieren</button>
+      </form>
     </section>
 
     <section>
-      <h2>✍️ Generierter Prompt</h2>
-      <pre id="prompt">(wird erzeugt…)</pre>
-      <button onclick="copyPrompt()">📋 In Zwischenablage kopieren</button>
+      <h2>📋 Generierter Prompt</h2>
+      <pre id="promptOutput"></pre>
     </section>
   </main>
 
