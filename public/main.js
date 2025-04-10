@@ -26,7 +26,7 @@ async function ladeArtikel() {
   }
 
   if (!data.length) {
-    app.innerHTML = "⚠️ Keine Artikel vorhanden.";
+    app.innerHTML = "⚠️ Keine Artikel aus den letzten 24 Stunden.";
     return;
   }
 
@@ -37,6 +37,7 @@ async function ladeArtikel() {
     card.innerHTML = `
       <h3>${a.titel}</h3>
       <p>${a.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
+      <small>📅 ${new Date(a.zeitstempel).toLocaleString()}</small>
     `;
     app.appendChild(card);
   });
