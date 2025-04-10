@@ -1,5 +1,6 @@
+// /api/prompt.js
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 
 const supabase = createClient(
@@ -8,22 +9,36 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  const templatePath = path.resolve('./api/promptvorlage.txt');
-  const vorlage = fs.readFileSync(templatePath, 'utf-8');
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Only POST allowed' });
+  }
 
-  const { data } = await supabase
-    .from("artikel")
-    .select("*")
-    .eq("ausgewählt", true)
-    .order("zeitstempel", { ascending: false });
+  const { artikelIds, hintergrundBegruendung, autorName } = req.body;
+  if (!Array.isArray(artikelIds) || artikelIds.length < 1 || !autorName) {
+    return res.status(400).json({ error: 'Fehlende Parameter' });
+  }
 
-  const teile = data.map(d => `### ${d.titel}
-${d.volltext.trim()}`).join("
+  const { data, error } = await supabase
+    .from('artikel')
+    .select('titel, volltext')
+    .in('id', artikelIds);
 
-");
+  if (error) return res.status(500).json({ error });
 
-  const prompt = `${vorlage}
+  let promptTemplate = await fs.readFile(path.resolve('./prompt.txt'), 'utf-8');
 
-${teile}`;
-  res.status(200).send(prompt);
+  let artikelTexte = '';
+  data.forEach((a, i) => {
+    artikelTexte += `Artikel ${i + 1}: ${a.titel}\n${a.volltext.trim()}\n\n`;
+  });
+
+  if (hintergrundBegruendung) {
+    artikelTexte += `\nBegründung für Hintergrundstück: ${hintergrundBegruendung}\n`;
+  }
+
+  const finalPrompt = promptTemplate
+    .replace('{{AUTOR}}', autorName)
+    .replace('{{ARTIKEL}}', artikelTexte.trim());
+
+  res.status(200).json({ prompt: finalPrompt });
 }
