@@ -15,29 +15,33 @@
       <button id="updateBtn" onclick="updateArticles()">Artikel aktualisieren</button>
       <button onclick="generatePrompt()">Prompt generieren</button>
     </div>
-
     <div class="name-field">
       <label for="autorName"><strong>Name für Prompt:</strong></label>
-      <input type="text" id="autorName" placeholder="z. B. Annika Boenigk"/>
+      <input type="text" id="autorName" placeholder="z. B. Annika Boenigk">
     </div>
-
+    <!-- Systemprompt-Vorlage bearbeiten -->
+    <div class="prompt-editor">
+      <label for="promptTemplate"><strong>System-Promptvorlage:</strong></label>
+      <textarea id="promptTemplate" rows="4" style="width:100%"></textarea>
+      <button onclick="savePromptTemplate()">Vorlage speichern</button>
+    </div>
     <div id="app">Artikel werden geladen…</div>
-
-    <!-- MODAL -->
-    <dialog id="promptDialog">
-      <div class="modal-header">
-        <span>📄 Vorschau: Mittagsupdate-Prompt</span>
-        <button onclick="closeDialog()">✖</button>
-      </div>
-      <div class="modal-body">
-        <pre id="promptText"></pre>
-      </div>
-      <div class="modal-footer">
-        <button onclick="copyPrompt()">In Zwischenablage kopieren</button>
-        <button onclick="closeDialog()">Schließen</button>
-      </div>
-    </dialog>
   </main>
+
+  <!-- Modal für Prompt-Vorschau -->
+  <dialog id="promptDialog">
+    <div class="modal-header">
+      <span>📄 Vorschau: Mittagsupdate-Prompt</span>
+      <button onclick="closeDialog()">✖</button>
+    </div>
+    <div class="modal-body">
+      <pre id="promptText"></pre>
+    </div>
+    <div class="modal-footer">
+      <button onclick="copyPrompt()">In Zwischenablage kopieren</button>
+      <button onclick="closeDialog()">Schließen</button>
+    </div>
+  </dialog>
 
   <script type="module" src="./main.js"></script>
 </body>
