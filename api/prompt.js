@@ -1,7 +1,6 @@
 // /api/prompt.js
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
-import path from 'path';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -9,41 +8,53 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Only POST allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).end();
 
-  const { artikelIds, hintergrundBegruendung, autorName } = req.body;
-  if (!Array.isArray(artikelIds) || artikelIds.length < 1 || !autorName) {
-    return res.status(400).json({ error: 'Fehlende Parameter' });
-  }
+  const { artikel, hintergrund, autor, begruendung } = await req.json();
+
+  const ids = artikel.filter(Boolean);
+  if (!ids.length) return res.status(400).json({ error: 'Keine Artikel ausgewählt' });
 
   const { data, error } = await supabase
     .from('artikel')
-    .select('titel, volltext')
-    .in('id', artikelIds);
+    .select('*')
+    .in('id', ids);
 
   if (error) return res.status(500).json({ error });
 
-  let promptTemplate;
-  try {
-    promptTemplate = await fs.readFile(path.resolve('./prompt.txt'), 'utf-8');
-  } catch (readErr) {
-    return res.status(500).json({ error: 'Promptvorlage fehlt oder kann nicht gelesen werden.' });
-  }
+  const vorlage = await fs.readFile('prompt-vorlage.txt', 'utf-8');
 
-  let artikelTexte = '';
+  let prompt = `${vorlage.trim()}
+
+---
+
+`;
+
   data.forEach((a, i) => {
-    artikelTexte += `Artikel ${i + 1}: ${a.titel}\n${a.volltext.trim()}\n\n`;
+    const nummer = i + 1;
+    prompt += `Artikel ${nummer}:
+Titel: ${a.titel}
+Teaser: ${a.beschreibung}
+Volltext: ${a.volltext}
+
+`;
   });
 
-  if (hintergrundBegruendung) {
-    artikelTexte += `\nBegründung für Hintergrundstück: ${hintergrundBegruendung}\n`;
+  if (hintergrund) {
+    const hg = data.find(d => d.id === hintergrund);
+    if (hg) {
+      prompt += `Hintergrundstück:
+Titel: ${hg.titel}
+Teaser: ${hg.beschreibung}
+Volltext: ${hg.volltext}
+`; 
+      if (begruendung) prompt += `Begründung: ${begruendung}
+`;
+    }
   }
 
-  const finalPrompt = promptTemplate
-    .replace('{{AUTOR}}', autorName)
-    .replace('{{ARTIKEL}}', artikelTexte.trim());
+  prompt += `
+Autor: ${autor}`;
 
-  res.status(200).json({ prompt: finalPrompt });
+  res.status(200).json({ prompt });
 }
