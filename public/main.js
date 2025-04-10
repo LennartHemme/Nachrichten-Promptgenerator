@@ -1,20 +1,38 @@
-console.log("✅ main.js");
+console.log("✅ main.js läuft");
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const supabase = createClient(
   'https://fwqzalxpezqdkplgudix.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o'  // ← Dein "anon" Key!
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o'  // Ersetze diesen durch deinen anon Key
 );
 
-let articleSelection = {}; // key = artikel.id, value = { rolle, begründung }
+// Globale Variable für die Promptvorlage (Systemteil)
+let promptTemplate = `System-Vorlage:
+Du bist ein Nachrichtenmoderator/in beim Mittagsupdate.
+Fasse die ausgewählten Artikel prägnant zusammen.
+------------------------------------`;
 
+// Hier kannst du die Vorlage über ein Eingabefeld bearbeiten – standardmäßig in localStorage speichern
+function loadPromptTemplate() {
+  const stored = localStorage.getItem("promptTemplate");
+  if (stored) {
+    promptTemplate = stored;
+  }
+  document.getElementById("promptTemplate").value = promptTemplate;
+}
+
+function savePromptTemplate() {
+  promptTemplate = document.getElementById("promptTemplate").value;
+  localStorage.setItem("promptTemplate", promptTemplate);
+}
+
+// Laden der Artikel (nur letzte 24h)
 async function ladeArtikel() {
-  const appDiv = document.getElementById("app");
-  appDiv.innerHTML = "⏳ Lade Artikel...";
-
-  // Filter in supabase: nur letzte 24h
+  const app = document.getElementById("app");
+  app.innerHTML = "⏳ Artikel werden geladen…";
   const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
   const { data, error } = await supabase
     .from("artikel")
     .select("*")
@@ -23,128 +41,83 @@ async function ladeArtikel() {
 
   if (error) {
     console.error(error);
-    appDiv.innerHTML = "❌ Fehler beim Laden.";
+    app.innerHTML = "❌ Fehler beim Laden der Artikel.";
     return;
   }
-
   if (!data || data.length === 0) {
-    appDiv.innerHTML = "Keine Artikel in den letzten 24h gefunden.";
+    app.innerHTML = "⚠️ Keine Artikel aus den letzten 24 Stunden gefunden.";
     return;
   }
 
-  // Ausgabe
-  appDiv.innerHTML = "";
+  // Ausgabe der Artikel mit Auswahlmöglichkeiten (Dropdown und Begründung)
+  app.innerHTML = "";
+  window.articleSelection = {}; // global für Prompt-Generierung
   data.forEach(art => {
-    // Article selection default
-    articleSelection[art.id] = {
-      rolle: "nicht verwenden",
-      begruendung: ""
-    };
+    // Initialisiere Auswahl für jeden Artikel
+    articleSelection[art.id] = { rolle: "nicht verwenden", begruendung: "" };
 
     const card = document.createElement("div");
     card.className = "card";
-
-    const roleSelectId = `roleSelect-${art.id}`;
-    const begrId = `begr-${art.id}`;
-
     card.innerHTML = `
-      <h3>${art.titel}</h3>
-      <p>${art.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
-      <button class="volltext-btn" data-id="${art.id}" data-link="${art.link}">Volltext anfordern</button>
-      <p style="color:#888;font-size:0.9em;">${art.volltext ? art.volltext.slice(0,150) + "..." : ""}</p>
-
-      <label>Einordnen als:
-        <select id="${roleSelectId}">
-          <option value="nicht verwenden">Nicht verwenden</option>
-          <option value="artikel1">Artikel 1</option>
-          <option value="artikel2">Artikel 2</option>
-          <option value="artikel3">Artikel 3</option>
-          <option value="artikel4">Artikel 4</option>
-          <option value="hintergrund">Hintergrundstück</option>
-        </select>
-      </label>
-      <br/>
-      <label>Begründung (optional):</label>
-      <br/>
-      <textarea id="${begrId}" rows="2" style="width:100%"></textarea>
-
-      <small>📅 ${new Date(art.zeitstempel).toLocaleString()}</small>
+      <div class="card-content">
+        <h3><a href="${art.link}" target="_blank">${art.titel}</a></h3>
+        <p>${art.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
+        <small>📅 ${new Date(art.zeitstempel).toLocaleString("de-DE")}</small>
+      </div>
+      <div class="card-controls">
+        <label>Einordnen als:
+          <select id="roleSelect-${art.id}">
+            <option value="nicht verwenden">Nicht verwenden</option>
+            <option value="artikel1">Artikel 1</option>
+            <option value="artikel2">Artikel 2</option>
+            <option value="artikel3">Artikel 3</option>
+            <option value="artikel4">Artikel 4</option>
+            <option value="hintergrund">Hintergrundstück</option>
+          </select>
+        </label>
+        <br/>
+        <label>Begründung (optional):
+          <input type="text" id="begr-${art.id}" placeholder="Begründung"/>
+        </label>
+      </div>
     `;
+    app.appendChild(card);
 
-    appDiv.appendChild(card);
-
-    // Event-Listener
-    const roleSelect = card.querySelector(`#${roleSelectId}`);
-    roleSelect.addEventListener("change", (ev) => {
+    // Event-Listener für Dropdown
+    const roleSelect = document.getElementById(`roleSelect-${art.id}`);
+    roleSelect.addEventListener("change", ev => {
       articleSelection[art.id].rolle = ev.target.value;
+      checkDuplicatePrioritäten();
     });
-
-    const begrTextarea = card.querySelector(`#${begrId}`);
-    begrTextarea.addEventListener("input", (ev) => {
+    // Event-Listener für Begründung
+    const begrInput = document.getElementById(`begr-${art.id}`);
+    begrInput.addEventListener("input", ev => {
       articleSelection[art.id].begruendung = ev.target.value;
-    });
-
-    // Volltext-Button
-    const vollBtn = card.querySelector(".volltext-btn");
-    vollBtn.addEventListener("click", async (ev) => {
-      const link = ev.target.dataset.link;
-      const articleId = ev.target.dataset.id;
-      ev.target.disabled = true;
-      ev.target.textContent = "Scraping...";
-      await scrapeVolltext(articleId, link);
-      ev.target.textContent = "Volltext anfordern";
-      ev.target.disabled = false;
-      // nach dem Scrapen neu laden, um updated volltext anzuzeigen
-      ladeArtikel();
     });
   });
 }
 
-async function scrapeVolltext(id, link) {
-  const response = await fetch(`/api/scrape?link=${encodeURIComponent(link)}&id=${encodeURIComponent(id)}`);
-  const result = await response.json();
-  console.log("Scrape result:", result);
+// Überprüft, ob kritische Prioritäten doppelt vergeben wurden (z.B. "artikel1" oder "hintergrund")
+function checkDuplicatePrioritäten() {
+  const count = {};
+  Object.values(articleSelection).forEach(sel => {
+    const r = sel.rolle;
+    if (!count[r]) count[r] = 0;
+    count[r]++;
+  });
+  if (count["artikel1"] > 1 || count["hintergrund"] > 1) {
+    console.warn("Doppelte Priorität: Bitte nur einen Artikel pro kritischer Kategorie auswählen.");
+  }
 }
 
-window.updateArticles = async function() {
-  const btn = document.getElementById("updateBtn");
-  btn.disabled = true;
-  btn.textContent = "🔄 Lade neue Artikel...";
-  const res = await fetch("/api/rss");
-  const data = await res.json();
-  console.log("Artikel aktualisiert, inserted:", data.inserted);
-
-  await ladeArtikel();
-  btn.disabled = false;
-  btn.textContent = "Artikel aktualisieren";
-};
-
-window.generatePrompt = function() {
-  const autorName = document.getElementById("autorName").value.trim() || "n.n.";
+// Prompt generieren: System-Prompt plus dynamisch zusammengefassten Content aus den Artikel-Auswahlen.
+// Dabei wird der automatisch gescrapete Volltext aus der Supabase verwendet.
+async function generatePrompt() {
+  const nameField = document.getElementById("autorName").value.trim() || "n.n.";
+  let prompt = promptTemplate + "\n\n" + "Name: " + nameField + "\n\n";
+  prompt += "Ausgewählte Artikel:\n";
   
-  // Bau Prompt aus Template
-  // Du kannst dieses Template beliebig anpassen
-  let prompt = `GPT-4 System:
-Du bist Nachrichten-Sprecher:in für das Mittagsupdate bei Radio Emscher Lippe.
-Name: ${autorName}
-
-Wir haben folgende Artikel-Auswahl:
------------------------
-`;
-
-  // Sortiere die Einträge nach (artikel1, artikel2, artikel3, artikel4, hintergrund)
-  // => mappe articleSelection
-  // => wir brauchen die Originaldaten (Titel, Teaser, Volltext) -> local an selection?
-  // => Lass uns "data" global cachen? Oder ruf nochmal supabase ab? -> Trick: wir haben data aus ladeArtikel. 
-  // => hier vereinfachen wir: wir rufen supabase nochmal ab und filtern.
-
-  prompt += "Wir fassen die ausgewählten Artikel zusammen:\n";
-
-  // local approach: just do a supabase call
-  finalizePrompt(autorName, prompt);
-};
-
-async function finalizePrompt(autorName, basePrompt) {
+  // Hole Artikel aus Supabase (letzte 24h)
   const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("artikel")
@@ -152,47 +125,9 @@ async function finalizePrompt(autorName, basePrompt) {
     .gte("zeitstempel", seitGestern)
     .order("zeitstempel", { ascending: false });
 
-  let prompt = basePrompt;
-
-  if (!error && data) {
-    // Gehe durch die data, schau in articleSelection
-    const chosen = [];
+  if (error || !data) {
+    prompt += "Fehler beim Abrufen der Artikel.";
+  } else {
     data.forEach(art => {
       const sel = articleSelection[art.id];
-      if (!sel) return;
-      if (sel.rolle === "nicht verwenden") return;
-
-      const rolle = sel.rolle;
-      const begr = sel.begruendung;
-      chosen.push({ art, rolle, begr });
-    });
-
-    // Sortierung: artikel1 -> artikel2 -> artikel3 -> artikel4 -> hintergrund
-    const order = { artikel1: 1, artikel2: 2, artikel3: 3, artikel4: 4, hintergrund: 5 };
-    chosen.sort((a,b) => (order[a.rolle]||99) - (order[b.rolle]||99));
-
-    chosen.forEach(ch => {
-      prompt += `\n--- [${ch.rolle}] ---\nTitel: ${ch.art.titel}\nTeaser: ${ch.art.beschreibung}\nVolltext: ${ch.art.volltext}\nBegründung: ${ch.begr || "n/a"}\n`;
-    });
-
-    prompt += "\nBitte formuliere daraus ein knackiges Mittagsupdate.\nSei präzise, aber kurz.\n";
-
-    showPromptModal(prompt);
-  }
-}
-
-function showPromptModal(text) {
-  document.getElementById("promptText").textContent = text;
-  document.getElementById("promptDialog").showModal();
-}
-
-window.closeDialog = function() {
-  document.getElementById("promptDialog").close();
-};
-
-window.copyPrompt = function() {
-  const txt = document.getElementById("promptText").textContent;
-  navigator.clipboard.writeText(txt);
-};
-
-updateArticles();
+      if (!sel || sel.rolle
