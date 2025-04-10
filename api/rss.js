@@ -1,35 +1,75 @@
-import Parser from 'rss-parser';
-
-const parser = new Parser();
+import { xml2json } from 'xml-js';
 
 export default async function handler(req, res) {
-  try {
-    // RSS-Feed von Radio Emscher Lippe laden
-    const feed = await parser.parseURL('https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss');
+  const rssUrl = "https://www.radioemscherlippe.de/thema/lokalnachrichten-447.rss";
+  const supabaseUrl = "https://fwqzalxpezqdkplgudix.supabase.co/rest/v1/artikel";
+  const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDI4NTUwMywiZXhwIjoyMDU5ODYxNTAzfQ.U-w5Nye44FALf8aH2VDMrVaJ_wsIJ4cyimhp_nGU07o"; // Ersetze diesen Platzhalter durch deinen vollständigen Service Role Key
 
-    // Artikel verarbeiten: pubDate wird in lesbares deutsches Datum umgewandelt und als rawDate für die Sortierung gespeichert
-    const articles = feed.items.map(item => {
-      const rawDate = new Date(item.pubDate);
-      return {
-        title: item.title,
-        link: item.link,
-        description: item.contentSnippet || item.description || "",
-        pubDate: rawDate.toLocaleString('de-DE', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        rawDate: rawDate.getTime()
-      };
+  try {
+    // RSS-Feed abrufen
+    const rssResponse = await fetch(rssUrl);
+    const rssText = await rssResponse.text();
+
+    // XML in JSON umwandeln
+    const feed = JSON.parse(xml2json(rssText, { compact: true }));
+
+    const items = feed.rss?.channel?.item;
+    if (!items || !Array.isArray(items)) {
+      return res.status(200).json({ error: "Keine Artikel gefunden" });
+    }
+
+    // Filter: Nur Artikel aus den letzten 24 Stunden berücksichtigen
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const recentItems = items.filter(item => {
+      const pubDateRaw = item.pubDate?._text?.trim();
+      if (!pubDateRaw) return false;
+      const pubDate = new Date(pubDateRaw).getTime();
+      return pubDate >= cutoff;
     });
 
-    // Absteigend sortieren – neueste Artikel zuerst
-    articles.sort((a, b) => b.rawDate - a.rawDate);
+    // Sortiere nach Datum absteigend (neueste zuerst)
+    recentItems.sort((a, b) => 
+      new Date(b.pubDate._text.trim()) - new Date(a.pubDate._text.trim())
+    );
 
-    res.status(200).json(articles);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    let inserted = 0;
+    for (const item of recentItems) {
+      const title = item.title?._cdata || item.title?._text || "";
+      const link = item.link?._text || "";
+      const description = item.description?._cdata || item.description?._text || "";
+      const pubDateRaw = item.pubDate?._text.trim() || "";
+      const zeitstempel = pubDateRaw ? new Date(pubDateRaw).toISOString() : new Date().toISOString();
+
+      if (!title || !link) continue; // Überspringe Artikel ohne Titel oder Link
+
+      // INSERT in Supabase via REST-API
+      const insertRes = await fetch(supabaseUrl, {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: 'Bearer ' + serviceKey,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          titel: title,
+          beschreibung: description,
+          volltext: "wird nachgeladen...",  // Falls du später einen Volltext-Scraper einbaust
+          ausgewählt: false,
+          hintergrund: false,
+          begründung_hintergrund: "",
+          rolle: "",
+          format: "Mittagsupdate",
+          autor: "",
+          zeitstempel: zeitstempel
+        })
+      });
+
+      if (insertRes.ok) inserted++;
+    }
+
+    res.status(200).json({ inserted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 }
