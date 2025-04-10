@@ -1,3 +1,8 @@
+const supabase = window.supabase.createClient(
+  'https://fwqzalxpezqdkplgudix.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODU1MDMsImV4cCI6MjA1OTg2MTUwM30.XIAIYCUzNxvRM9R-S3uLLz-XPUC8i7jWSWmhwyWyi4A'
+);
+
 async function updateArticles() {
   const app = document.getElementById("app");
   app.innerHTML = "Lade Artikel...";
