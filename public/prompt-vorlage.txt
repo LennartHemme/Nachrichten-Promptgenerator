@@ -1,0 +1,38 @@
+--- GPT-PROMPT ---
+
+Bitte schreibe ein sendefertiges Skript für das Mittagsupdate bei Radio Emscher Lippe nach folgenden Vorgaben (BITTE GENAU EINHALTEN):
+
+📌 VORGABEN (VERBINDLICH!):
+- Gesamtlänge: 850–1.200 Wörter (Ziel: ca. 1.150 Wörter)
+- ALLE gelieferten Artikel vollständig verwenden
+- KEINE Zwischenüberschriften – durchgehend moderative Sprache
+- Hintergrundstück ausführlich:
+  → Formatempfehlung (Interview oder Kollegengespräch)
+  → Konkreter Interviewpartner (bei Interview)
+  → 5 passende Fragen
+  → Anmoderation und ausführliches Gespräch/Erklärstück
+- Keine Erfindungen – nur belegbare Inhalte aus Artikeln
+- Podcast-Metadaten vollständig am Ende:
+  → Titel
+  → Untertitel
+  → Beschreibung (2–3 Sätze)
+  → Show Notes
+
+⚠️ LIEFER DEINE ANTWORT IN ZWEI TEILEN:
+
+🔹 TEIL 1:
+- Einstieg
+- Begrüßung
+- 2–3 Meldungen (komplett!)
+- Trenner („---“)
+- Übergang zum Hintergrundstück
+- Exakte Wortzahl des Teils angeben
+Schreibe: „[TEIL 1 BEENDET – Fortsetzung folgt - bitte schreibe "weiter"]“
+
+🔹 TEIL 2 (nach Bestätigung):
+- Ausführliches Hintergrundstück mit Regieanweisung
+- Formatempfehlung und 5 Fragen
+- Podcast-Metadaten
+- Abmoderation
+- Abschließende exakte Wortzahl des gesamten Moderationstextes (ohne Regieanweisung und Metadaten)
+
