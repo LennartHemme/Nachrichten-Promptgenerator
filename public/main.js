@@ -7,6 +7,7 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3cXphbHhwZXpxZGtwbGd1ZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODU1MDMsImV4cCI6MjA1OTg2MTUwM30.XIAIYCUzNxvRM9R-S3uLLz-XPUC8i7jWSWmhwyWyi4A'
 );
 
+// Artikel laden
 async function ladeArtikel() {
   const appDiv = document.getElementById("app");
   appDiv.innerHTML = "<p>🧪 Lade Artikel aus Supabase…</p>";
@@ -37,7 +38,7 @@ async function ladeArtikel() {
 
     articleDiv.innerHTML = `
       <h3>🧠 Supabase: ${artikel.titel}</h3>
-      ${artikel.volltext ? `<details><summary>Volltext</summary><p>${artikel.volltext}</p></details>` : ""}
+      ${artikel.volltext ? `<details><summary>Volltext anzeigen</summary><p>${artikel.volltext}</p></details>` : ""}
       <p><strong>Rolle:</strong> ${artikel.rolle || "-"}</p>
       <label>
         <input type="checkbox" ${artikel.ausgewählt ? "checked" : ""} disabled />
@@ -58,4 +59,29 @@ async function ladeArtikel() {
   });
 }
 
-ladeArtikel();
+// Artikel aus RSS nach Supabase laden
+async function updateArticles() {
+  const updateButton = document.querySelector("button[onclick='updateArticles()']");
+  if (updateButton) {
+    updateButton.textContent = "🔄 Lade neue Artikel…";
+    updateButton.disabled = true;
+  }
+
+  const res = await fetch("/api/rss");
+  const result = await res.json();
+
+  console.log(`🆕 Neue Artikel eingefügt: ${result.inserted}`);
+
+  await ladeArtikel();
+
+  if (updateButton) {
+    updateButton.textContent = "Artikel aktualisieren";
+    updateButton.disabled = false;
+  }
+}
+
+// Button-Funktion global verfügbar machen
+window.updateArticles = updateArticles;
+
+// Direkt beim Laden: RSS aktualisieren und Artikel anzeigen
+updateArticles();
