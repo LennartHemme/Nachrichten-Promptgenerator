@@ -1,125 +1,82 @@
-console.log("✅ main.js läuft");
+let supabase;
 
 async function getConfig() {
   const res = await fetch('/api/config');
-  return await res.json();
+  return res.json();
 }
-
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-let supabase;
-
-getConfig().then(config => {
-  supabase = createClient(config.supabaseUrl, config.publicAnonKey);
-  updateArticles();
-});
-
-let artikelListe = [];
 
 async function ladeArtikel() {
   const app = document.getElementById("app");
   app.innerHTML = "⏳ Lade Artikel...";
 
   const seitGestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
   const { data, error } = await supabase
     .from("artikel")
     .select("*")
     .gte("zeitstempel", seitGestern)
     .order("zeitstempel", { ascending: false });
 
-  if (error) {
-    console.error(error);
-    app.innerHTML = "❌ Fehler beim Laden.";
-    return;
-  }
+  if (error) return app.innerHTML = "❌ Fehler beim Laden.";
 
-  artikelListe = data;
-  renderArtikel();
-}
-
-function renderArtikel() {
-  const app = document.getElementById("app");
-  app.innerHTML = "";
-
-  artikelListe.forEach((a, index) => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <div class="flex">
-        <div style="flex:3;">
-          <h3>${a.titel}</h3>
-          <p>${a.beschreibung || "Kein Beschreibungstext vorhanden."}</p>
-          <small>📅 ${new Date(a.zeitstempel).toLocaleString()}</small><br>
-          <a href="${a.link}" target="_blank">🔗 Zum Artikel</a>
-        </div>
-        <div style="flex:1; padding-left:10px;">
-          <select class="prio" data-index="${index}">
-            <option value="">- Priorität -</option>
-            <option value="1">Artikel 1</option>
-            <option value="2">Artikel 2</option>
-            <option value="3">Artikel 3</option>
-            <option value="4">Artikel 4</option>
-          </select><br>
-          <label>
-            <input type="checkbox" class="hintergrund" data-index="${index}" /> Hintergrundstück
-          </label><br>
-          <textarea class="begruendung" data-index="${index}" placeholder="Begründung (optional)"></textarea>
-        </div>
-      </div>
-    `;
-    app.appendChild(card);
-  });
-
-  const promptBtn = document.createElement("button");
-  promptBtn.textContent = "Prompt generieren";
-  promptBtn.onclick = generierePrompt;
-  app.appendChild(promptBtn);
-}
-
-function generierePrompt() {
-  const prios = [...document.querySelectorAll('.prio')];
-  const prioWerte = prios.map(p => p.value).filter(Boolean);
-
-  if (new Set(prioWerte).size !== prioWerte.length) {
-    alert("⚠️ Doppelte Priorität vergeben!");
-    return;
-  }
-
-  fetch('/prompt-vorlage.txt')
-    .then(res => res.text())
-    .then(vorlage => {
-      let prompt = vorlage;
-
-      prios.forEach(select => {
-        if (select.value) {
-          const artikel = artikelListe[select.dataset.index];
-          prompt += `\n\nArtikel ${select.value}:\n${artikel.volltext}`;
-        }
-      });
-
-      const hintergruende = [...document.querySelectorAll('.hintergrund')]
-        .filter(c => c.checked);
-
-      hintergruende.forEach(h => {
-        const artikel = artikelListe[h.dataset.index];
-        const begruendung = document.querySelector(`.begruendung[data-index="${h.dataset.index}"]`).value || "keine Begründung";
-        prompt += `\n\nHintergrundstück:\n${artikel.volltext}\nBegründung: ${begruendung}`;
-      });
-
-      navigator.clipboard.writeText(prompt);
-      alert("✅ Prompt kopiert!");
-    });
+  app.innerHTML = data.map(a => `
+    <div class="card">
+      <h3>${a.titel}</h3>
+      <p>${a.beschreibung}</p>
+      <a href="${a.link}" target="_blank">Artikel ansehen</a>
+      <select data-id="${a.id}">
+        <option>Nicht verwenden</option>
+        <option>Artikel 1</option>
+        <option>Artikel 2</option>
+        <option>Artikel 3</option>
+        <option>Artikel 4</option>
+        <option>Hintergrundstück</option>
+      </select>
+      <textarea placeholder="Begründung (optional)" data-id="${a.id}"></textarea>
+    </div>
+  `).join('');
 }
 
 async function updateArticles() {
-  const btn = document.getElementById("updateBtn");
-  btn.disabled = true;
-  btn.textContent = "⏳ Lade neue Artikel...";
+  document.getElementById("updateBtn").textContent = "⏳ Lade neue Artikel...";
   await fetch("/api/rss");
   await ladeArtikel();
-  btn.disabled = false;
-  btn.textContent = "Artikel aktualisieren";
+  document.getElementById("updateBtn").textContent = "Artikel aktualisieren";
 }
 
+async function promptGenerieren() {
+  const vorlage = await fetch('/api/promptvorlage.txt').then(r => r.text());
+  const selected = Array.from(document.querySelectorAll("select"))
+    .map(sel => ({
+      id: sel.dataset.id,
+      rolle: sel.value,
+      begruendung: document.querySelector(`textarea[data-id="${sel.dataset.id}"]`).value
+    }))
+    .filter(sel => sel.rolle !== "Nicht verwenden");
+
+  // Warnung bei doppelter Auswahl
+  const rollen = selected.map(s => s.rolle).filter(r => r !== "Hintergrundstück");
+  if (new Set(rollen).size !== rollen.length)
+    return alert("❌ Rollen doppelt vergeben!");
+
+  const artikelIds = selected.map(s => s.id);
+  const { data } = await supabase.from("artikel").select("*").in("id", artikelIds);
+
+  let prompt = vorlage + "\n\n";
+  data.forEach(a => {
+    const auswahl = selected.find(sel => sel.id === a.id);
+    prompt += `\n---\n\n**${auswahl.rolle}**\n\n${a.volltext}\n`;
+    if (auswahl.rolle === "Hintergrundstück" && auswahl.begruendung)
+      prompt += `\nBegründung: ${auswahl.begruendung}\n`;
+  });
+
+  navigator.clipboard.writeText(prompt);
+  alert("Prompt kopiert!");
+}
+
+getConfig().then(cfg => {
+  supabase = supabase || createClient(cfg.supabaseUrl, cfg.publicAnonKey);
+  ladeArtikel();
+});
+
 window.updateArticles = updateArticles;
+window.promptGenerieren = promptGenerieren;
