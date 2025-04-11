@@ -1,3 +1,6 @@
+Datum: [DATUM]
+Moderator: [NAME]
+
 --- GPT-PROMPT ---
 
 Bitte schreibe ein sendefertiges Skript für das Mittagsupdate bei Radio Emscher Lippe nach folgenden Vorgaben (BITTE GENAU EINHALTEN):
